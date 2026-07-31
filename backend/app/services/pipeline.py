@@ -2,7 +2,7 @@
 
 ingest -> extract core claim + domain (Gemini) -> embed -> store in Supabase
 -> reconstruct lineage -> serve mutation tree / velocity / platform breakdown
--> explainable verdict routed through trusted sources.
+-> suggest research destinations without treating them as evidence.
 """
 import json
 from collections import Counter, defaultdict
@@ -14,15 +14,24 @@ from google.genai import types
 from app.config import get_settings
 from app.core import supabase as db
 from app.services import embeddings
-from app.services.source_router import sources_for
-from app.services.tree import reconstruct_parents
+from app.services.source_router import research_resources_for
+from app.utils.logger import setup_logger
 
+logger = setup_logger(__name__)
 settings = get_settings()
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
+_ALLOWED_DOMAINS = {"health", "election", "government", "finance", "education", "other"}
+_ALLOWED_LANGUAGES = {"en", "ne", "romanized", "mixed"}
+_SUBMISSION_VERDICT = "UNVERIFIED"
+_SUBMISSION_RATIONALE = (
+    "No claim-specific evidence has been inspected; human verification is required."
+)
+
 _EXTRACT_PROMPT = """You are helping fact-checkers in Nepal.
 Given a raw message (Nepali Devanagari, Romanized Nepali, English, or mixed),
-extract its core factual claim and classify it.
+extract its core factual claim and classify its topic and language. Do not
+assess whether the claim is true or false.
 
 MESSAGE:
 {text}
@@ -31,14 +40,12 @@ Return ONLY JSON with these exact keys:
 {{
   "canonical": "the normalized core factual claim in the message's main language",
   "domain": "health | election | government | finance | education | other",
-  "language": "en | ne | romanized | mixed",
-  "verdict": "FAKE | REAL | UNVERIFIED",
-  "rationale": "one short sentence explaining the verdict; if unsure use UNVERIFIED"
+  "language": "en | ne | romanized | mixed"
 }}"""
 
 
 def _extract(text: str) -> dict:
-    """Extract the canonical claim + domain + tentative verdict via Gemini."""
+    """Extract and validate non-verdict claim metadata via Gemini."""
     try:
         resp = _client.models.generate_content(
             model=settings.GENERATION_MODEL,
@@ -48,69 +55,80 @@ def _extract(text: str) -> dict:
             ),
         )
         data = json.loads(resp.text)
-        if isinstance(data, dict) and data.get("canonical"):
-            return data
+        if isinstance(data, dict):
+            canonical = data.get("canonical")
+            if isinstance(canonical, str) and canonical.strip():
+                domain = str(data.get("domain", "other")).lower()
+                language = str(data.get("language", "mixed")).lower()
+                return {
+                    "canonical": canonical.strip()[:1000],
+                    "domain": domain if domain in _ALLOWED_DOMAINS else "other",
+                    "language": (
+                        language if language in _ALLOWED_LANGUAGES else "mixed"
+                    ),
+                }
     except Exception:
-        pass
-    # Graceful fallback: treat the raw text as the claim, needs human review.
+        logger.warning("Claim extraction via Gemini failed; falling back to raw text", exc_info=True)
+    # Graceful fallback: treat the raw text as the unverified claim.
     return {
         "canonical": text.strip()[:1000],
         "domain": "other",
         "language": "mixed",
-        "verdict": "UNVERIFIED",
-        "rationale": "Automatic extraction unavailable — needs human review.",
     }
 
 
-def ingest_claim(text: str) -> dict:
-    """Ingest a raw submission and return a claim summary + verdict card."""
+def ingest_claim(
+    text: str,
+    access_token: str,
+    *,
+    match_threshold: float = 0.85,
+    match_window_days: int = 3650,
+    rate_limit: int = 10,
+    rate_window_minutes: int = 60,
+) -> dict:
+    """Ingest a raw submission without issuing an unsupported factual verdict."""
     info = _extract(text)
-    claim_id = db.insert_claim(
-        canonical=info["canonical"],
-        domain=info.get("domain"),
-        language=info.get("language"),
-        label=info.get("verdict"),
-        source="submission",
-    )
-
     now = datetime.now(timezone.utc).isoformat()
-    variant = {
-        "claim_id": claim_id,
-        "text": text.strip()[:2000],
-        "embedding": embeddings.embed_text(info["canonical"]),
-        "platform": "submission",
-        "ts": now,
-        "mutation_type": "original",
-        "verdict": info.get("verdict"),
-        "rationale": info.get("rationale"),
-        "source": "submission",
-        "language": info.get("language"),
-    }
-    inserted = db.insert_variants([variant])
-    for r in inserted:
-        r["embedding"] = variant["embedding"]
-        r["ts"] = now
-    reconstruct_parents(inserted)
+    embedding = embeddings.embed_text(info["canonical"])
+    ingestion = db.ingest_claim_atomic(access_token, {
+        "p_text": text.strip(),
+        "p_canonical": info["canonical"],
+        "p_domain": info["domain"],
+        "p_language": info["language"],
+        "p_embedding": embedding,
+        "p_platform": "submission",
+        "p_ts": now,
+        "p_match_threshold": match_threshold,
+        "p_match_window_days": match_window_days,
+        "p_rate_limit": rate_limit,
+        "p_rate_window_minutes": rate_window_minutes,
+    })
 
     return {
-        "id": claim_id,
+        "id": ingestion["claim_id"],
+        "variant_id": ingestion["variant_id"],
+        "parent_id": ingestion.get("parent_id"),
+        "matched": ingestion["matched"],
+        "similarity": ingestion.get("similarity"),
         "canonical": info["canonical"],
         "domain": info.get("domain"),
         "language": info.get("language"),
-        "label": info.get("verdict"),
-        "verdict": info.get("verdict"),
-        "rationale": info.get("rationale"),
-        "sources": sources_for(info.get("domain")),
-        "variant_count": 1,
+        "label": _SUBMISSION_VERDICT,
+        "verdict": _SUBMISSION_VERDICT,
+        "rationale": _SUBMISSION_RATIONALE,
+        "research_resources": research_resources_for(info.get("domain")),
+        "variant_count": ingestion["variant_count"],
     }
 
 
 def list_claims(limit: int = 100) -> list[dict]:
     """Return recent claims (most recent first)."""
     res = (
-        db.get_client()
+        db.get_anon_client()
         .table("claims")
-        .select("*")
+        .select(
+            "id,canonical,domain,language,label,source,verdict,rationale,created_at"
+        )
         .order("created_at", desc=True)
         .limit(limit)
         .execute()
@@ -120,7 +138,7 @@ def list_claims(limit: int = 100) -> list[dict]:
 
 def _fetch_variants(claim_id: str) -> list[dict]:
     res = (
-        db.get_client()
+        db.get_anon_client()
         .table("variants")
         .select("id,text,platform,ts,parent_id,mutation_type")
         .eq("claim_id", claim_id)

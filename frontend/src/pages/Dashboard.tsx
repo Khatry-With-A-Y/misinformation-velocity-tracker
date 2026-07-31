@@ -175,9 +175,7 @@ export default function Dashboard() {
     } catch (error) {
       showNotification(
         dispatch,
-        error instanceof Error
-          ? `Analysis failed — check backend configuration. ${error.message}`
-          : 'Analysis failed — check backend configuration.',
+        error instanceof Error ? error.message : 'Analysis failed — please try again.',
         'error'
       )
     } finally {

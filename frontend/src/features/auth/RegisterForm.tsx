@@ -39,7 +39,14 @@ function RegisterFormContent() {
 
     const result = await register({ email, username, password, confirmPassword })
 
-    if (result.success) {
+    if (result.success && result.requiresConfirmation) {
+      toast({
+        title: 'Check your email',
+        description:
+          result.message || 'Please confirm your email address, then log in.',
+      })
+      navigate('/login')
+    } else if (result.success) {
       toast({
         title: 'Registration successful!',
         description: 'Your account has been created.',

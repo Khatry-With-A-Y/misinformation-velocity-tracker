@@ -1,7 +1,7 @@
-"""Source Router: maps a claim's domain to curated trusted Nepali sources.
+"""Map claim domains to suggested places for further research.
 
-Rules + entity based (not pure AI). Used by the verdict step to decide where
-evidence *should* come from and to surface those links in the verdict card.
+These destinations are not inspected for a submitted claim and are not
+citations or evidence for a verdict.
 """
 
 TRUSTED_SOURCES: dict[str, list[dict]] = {
@@ -29,6 +29,20 @@ TRUSTED_SOURCES: dict[str, list[dict]] = {
 }
 
 
+def research_resources_for(domain: str | None) -> list[dict]:
+    """Return advisory research destinations for a domain."""
+    resources = TRUSTED_SOURCES.get(
+        (domain or "other").lower(), TRUSTED_SOURCES["other"]
+    )
+    return [
+        {
+            **resource,
+            "advisory": "Suggested research destination; not inspected as evidence.",
+        }
+        for resource in resources
+    ]
+
+
 def sources_for(domain: str | None) -> list[dict]:
-    """Return trusted sources for a domain, falling back to general fact-checkers."""
-    return TRUSTED_SOURCES.get((domain or "other").lower(), TRUSTED_SOURCES["other"])
+    """Backward-compatible alias for research resource lookup."""
+    return research_resources_for(domain)

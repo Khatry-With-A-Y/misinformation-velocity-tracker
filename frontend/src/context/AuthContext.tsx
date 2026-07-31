@@ -1,18 +1,20 @@
-import { createContext, useContext, useReducer, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useEffect, useReducer, ReactNode, useCallback } from 'react'
 import { API_URL } from '@/lib/api'
-import { AuthState, LoginCredentials, RegisterCredentials, AuthResult } from '@/types/auth'
+import { AuthState, LoginCredentials, RegisterCredentials, AuthResult, User } from '@/types/auth'
 
 // Action types
 export const AUTH_ACTIONS = {
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGOUT: 'LOGOUT',
   SET_LOADING: 'SET_LOADING',
+  SET_USER: 'SET_USER',
 } as const
 
 type AuthAction =
   | { type: typeof AUTH_ACTIONS.LOGIN_SUCCESS; payload: { token: string } }
   | { type: typeof AUTH_ACTIONS.LOGOUT }
   | { type: typeof AUTH_ACTIONS.SET_LOADING; payload: boolean }
+  | { type: typeof AUTH_ACTIONS.SET_USER; payload: User | null }
 
 const AuthStateContext = createContext<AuthState | null>(null)
 const AuthDispatchContext = createContext<{
@@ -49,9 +51,24 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         ...state,
         isLoading: action.payload,
       }
+    case AUTH_ACTIONS.SET_USER:
+      return {
+        ...state,
+        user: action.payload,
+      }
     default:
       return state
   }
+}
+
+async function fetchProfile(token: string): Promise<User | null> {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    return null
+  }
+  return (await response.json()) as User
 }
 
 interface AuthProviderProps {
@@ -60,6 +77,28 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, getInitialState())
+
+  const loadUser = useCallback(async (token: string): Promise<void> => {
+    try {
+      const user = await fetchProfile(token)
+      if (user) {
+        dispatch({ type: AUTH_ACTIONS.SET_USER, payload: user })
+        return
+      }
+    } catch {
+      // Network failure — fall through and clear the stale session.
+    }
+    localStorage.removeItem('token')
+    dispatch({ type: AUTH_ACTIONS.LOGOUT })
+  }, [])
+
+  // Populate the user profile on mount when a token is already stored.
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      void loadUser(token)
+    }
+  }, [loadUser])
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<AuthResult> => {
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true })
@@ -88,6 +127,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: { token: data.access_token },
       })
+      void loadUser(data.access_token)
 
       return { success: true, error: null }
     } catch (error) {
@@ -97,7 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: error instanceof Error ? error.message : 'Login failed',
       }
     }
-  }, [])
+  }, [loadUser])
 
   const register = useCallback(
     async (credentials: RegisterCredentials): Promise<AuthResult> => {
@@ -105,6 +145,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       try {
         const { confirmPassword, ...registerData } = credentials
+
+        if (confirmPassword !== undefined && confirmPassword !== registerData.password) {
+          dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false })
+          return {
+            success: false,
+            error: 'Passwords do not match',
+          }
+        }
+
         const response = await fetch(`${API_URL}/api/auth/register`, {
           method: 'POST',
           headers: {
@@ -123,11 +172,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
-        // After successful registration, automatically log in
-        return login({
-          email: registerData.email,
-          password: registerData.password,
-        })
+        // Only auto-login when Supabase returned a session token immediately.
+        if (data.access_token) {
+          return login({
+            email: registerData.email,
+            password: registerData.password,
+          })
+        }
+
+        // Email confirmation is pending — no session yet.
+        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false })
+        return {
+          success: true,
+          error: null,
+          requiresConfirmation: true,
+          message:
+            data.message || 'Registration received. Please confirm your email, then log in.',
+        }
       } catch (error) {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false })
         return {

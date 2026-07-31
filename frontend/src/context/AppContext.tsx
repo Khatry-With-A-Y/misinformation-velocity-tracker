@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, ReactNode, Dispatch } from 'react'
+import { createContext, useContext, useEffect, useReducer, ReactNode, Dispatch } from 'react'
 import { AppState, Theme, NotificationType } from '../types'
 import { AuthProvider } from './AuthContext'
 
@@ -56,18 +56,11 @@ const initialState: AppState = {
 // Reducer
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case ACTIONS.SET_THEME: {
-      const newTheme = action.payload
-      localStorage.setItem('theme', newTheme)
-      // Update DOM synchronously with state change
-      const root = window.document.documentElement
-      root.classList.remove('light', 'dark')
-      root.classList.add(newTheme)
+    case ACTIONS.SET_THEME:
       return {
         ...state,
-        theme: newTheme,
+        theme: action.payload,
       }
-    }
     case ACTIONS.SET_USER_PREFERENCES:
       return {
         ...state,
@@ -85,7 +78,7 @@ function appReducer(state: AppState, action: Action): AppState {
         },
       }
     default:
-      throw new Error(`Unknown actionS`)
+      return state
   }
 }
 
@@ -96,12 +89,13 @@ interface AppProviderProps {
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(appReducer, initialState)
 
-  // Initialize theme class on mount
-  if (typeof window !== 'undefined') {
+  // Sync theme with the DOM and localStorage as a side effect
+  useEffect(() => {
     const root = window.document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(state.theme)
-  }
+    localStorage.setItem('theme', state.theme)
+  }, [state.theme])
 
   return (
     <AppContext.Provider value={state}>

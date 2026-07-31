@@ -8,6 +8,14 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class RegisterResponse(BaseModel):
+    """Register result: a session token, or a pending email-confirmation status."""
+    status: str = "ok"
+    message: Optional[str] = None
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     username: Optional[str] = None

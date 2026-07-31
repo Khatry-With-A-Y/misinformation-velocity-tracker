@@ -14,7 +14,9 @@ docs
 tests
 
 # Frontend
+frontend/dist/
 frontend/node_modules/
+node_modules/
 frontend/build/
 frontend/.env.local
 frontend/.env.development.local
@@ -23,3 +25,24 @@ frontend/.env.production.local
 
 #backend
 backend/app/logs/dev
+backend/app/logs/
+
+# Logs
+*.log
+logs/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python virtualenv / caches
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

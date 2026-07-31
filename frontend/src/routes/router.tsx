@@ -1,6 +1,7 @@
 import { createBrowserRouter, redirect } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import RootLayout from '../layouts/RootLayout'
+import { ProtectedRoute } from '../components/ProtectedRoute'
 
 // Lazy load components
 const Home = lazy(() => import('../pages/Home'))
@@ -46,6 +47,8 @@ const routes = {
       path: 'register',
       element: <Register />,
     },
+  ],
+  protected: [
     {
       path: 'dashboard',
       element: <Dashboard />,
@@ -67,6 +70,12 @@ export const router = createBrowserRouter([
       ...routes.public.map((route) => ({
         ...route,
         element: withSuspense(route.element),
+      })),
+
+      // Protected routes (require authentication)
+      ...routes.protected.map((route) => ({
+        ...route,
+        element: withSuspense(<ProtectedRoute>{route.element}</ProtectedRoute>),
       })),
 
       // Catch-all route

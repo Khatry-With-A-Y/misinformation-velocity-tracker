@@ -1,7 +1,8 @@
+// Matches the backend UserResponse schema (GET /api/auth/me)
 export interface User {
   id: string
-  email: string
-  role: 'user' | 'admin' | 'moderator'
+  email?: string | null
+  username?: string | null
 }
 
 export interface LoginCredentials {
@@ -22,6 +23,9 @@ export interface AuthResponse {
 export interface AuthResult {
   success: boolean
   error: string | null
+  /** Set when registration succeeded but email confirmation is pending. */
+  requiresConfirmation?: boolean
+  message?: string | null
 }
 
 export interface AuthState {

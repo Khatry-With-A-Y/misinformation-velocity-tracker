@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from functools import lru_cache
 from typing import Optional, List
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -34,6 +35,12 @@ class Settings(BaseSettings):
     EMBEDDING_DIM: int = 768
     GENERATION_MODEL: str = "gemini-1.5-flash"
 
+    # --- Authenticated claim ingestion ---
+    CLAIM_MATCH_THRESHOLD: float = Field(default=0.85, ge=0, le=1)
+    CLAIM_MATCH_WINDOW_DAYS: int = Field(default=3650, ge=1, le=36500)
+    CLAIM_RATE_LIMIT: int = Field(default=10, ge=1, le=1000)
+    CLAIM_RATE_WINDOW_MINUTES: int = Field(default=60, ge=1, le=10080)
+
     # --- Loader / generator limits ---
     NEPOC_CLAIM_GROUPS: int = 10
     MISDETECT_ROWS_PER_DOMAIN: int = 5
@@ -51,11 +58,6 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 30
     DB_ECHO: bool = False
     DB_SSL_MODE: Optional[str] = None
-
-    # JWT Settings
-    SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "secret-key-for-development")
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     class Config:
         env_file = ".env"

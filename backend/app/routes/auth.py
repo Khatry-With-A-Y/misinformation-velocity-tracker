@@ -4,34 +4,57 @@ The frontend posts to /api/auth/login and /api/auth/register and expects a
 `{ access_token, token_type }` response. We proxy those to Supabase Auth so
 the returned access token is a valid Supabase JWT (verified by get_current_user).
 """
+import time
+
 from fastapi import APIRouter, Depends, HTTPException
+from gotrue.errors import AuthRetryableError
 
 from app.core.supabase import get_anon_client, get_current_user
-from app.schemas.auth import LoginRequest, RegisterRequest, Token, UserResponse
+from app.schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    RegisterResponse,
+    Token,
+    UserResponse,
+)
 from app.utils.logger import setup_logger
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = setup_logger(__name__)
 
 
-@router.post("/register", response_model=Token)
+@router.post("/register", response_model=RegisterResponse)
 async def register(data: RegisterRequest):
-    try:
-        res = get_anon_client().auth.sign_up({
-            "email": data.email,
-            "password": data.password,
-            "options": {"data": {"username": data.username}},
-        })
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    payload = {
+        "email": data.email,
+        "password": data.password,
+        "options": {"data": {"username": data.username}},
+    }
+    res = None
+    # Supabase Auth calls can time out transiently; retry retryable errors once.
+    for attempt in range(2):
+        try:
+            res = get_anon_client().auth.sign_up(payload)
+            break
+        except AuthRetryableError:
+            logger.warning("Supabase sign-up timed out (attempt %d)", attempt + 1)
+            if attempt == 1:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Authentication service is temporarily unavailable. Please try again.",
+                )
+            time.sleep(1)
+        except Exception:
+            logger.exception("Registration failed")
+            raise HTTPException(status_code=400, detail="Registration failed")
 
     session = getattr(res, "session", None)
     if session and getattr(session, "access_token", None):
-        return Token(access_token=session.access_token)
+        return RegisterResponse(status="ok", access_token=session.access_token)
     # Email confirmation may be required -> no session yet; ask the client to log in.
-    raise HTTPException(
-        status_code=202,
-        detail="Registration received. Please confirm your email, then log in.",
+    return RegisterResponse(
+        status="confirmation_required",
+        message="Registration received. Please confirm your email, then log in.",
     )
 
 
