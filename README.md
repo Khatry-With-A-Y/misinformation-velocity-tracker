@@ -49,6 +49,19 @@ backend/
 | GET | `/api/claims/{id}/velocity` | variants-per-day `[{ bucket, count }]` |
 | GET | `/api/claims/{id}/platforms` | platform breakdown `[{ platform, count }]` |
 
+## Demo auth model
+
+- The dashboard is intentionally public for hackathon/demo usability: open
+  `http://localhost:5173/dashboard` without signing in to use the core claim
+  analysis flow.
+- No default logins exist in this repository. Do not expect a built-in demo
+  email or password.
+- Optional accounts are still supported through the Supabase-backed
+  `POST /api/auth/register` and `POST /api/auth/login` routes when Supabase Auth
+  is configured for the environment.
+- Backend auth routes are retained for future private features, but the current
+  claim ingestion, list, tree, velocity, and platform endpoints remain public.
+
 ## Setup
 
 1. **Create a Supabase project**, then run `schema.sql` in the SQL editor
@@ -101,4 +114,3 @@ parent lineage) that the mutation tree and velocity chart are built from.
   it to the frontend. Auth uses the **anon key**.
 - Confirm the **NepOOC license** before redistributing its rows publicly.
 - Tests: `pytest` (a health smoke test is included).
->>>>>>> shashwat
