@@ -1,195 +1,104 @@
-# Misinformation Velocity Tracker
+# Misinformation Velocity Tracker — Backend (FastAPI + Supabase)
 
-> Track how a claim spreads and mutates across public platforms in Nepal — not just whether a single message looks suspicious.
+FastAPI service that powers claim ingestion, the mutation tree, velocity, and
+the explainable verdict. Structure follows a clean `app/` layout (adapted from
+the `fastapi-react-starter`), with Supabase as the database + auth provider
+(adapted from `fastapi-supabase-starter`) and the dataset/AI pipeline folded in.
 
-The Misinformation Velocity Tracker is a tool for **journalists and fact-checkers**. Instead of checking one message in isolation, it reconstructs how a claim propagates over time, how its wording evolves ("mutates") across platforms, how fast it travels (**velocity**), and gives a **verdict + priority score** so newsrooms know what to debunk first.
-
----
-
-## Summary
-
-Most misinformation tools answer *"is this message a scam?"*. This project answers a more useful question for media professionals:
-
-> *"Where did this claim come from, how is it changing, how fast is it spreading, and how urgent is it?"*
-
-Paste or seed a claim → the pipeline finds its variants, builds a **mutation tree**, plots a **velocity-over-time** chart, breaks spread down **by platform**, and produces an **explainable verdict** routed through trusted Nepali sources — all with full **Nepali + English** support (Devanagari, Romanized Nepali, and mixed text).
-
----
-
-## Features
-
-- **Claim ingestion** — paste text, upload an image/screenshot, or seed from monitored/curated sources.
-- **Mutation tree** — reconstructs claim lineage (parent → child variants) from embedding similarity + timestamps.
-- **Velocity chart** — variants-per-time-bucket shows how fast a claim is spreading.
-- **Platform breakdown** — see where a claim lives (Facebook, TikTok, X, YouTube, WhatsApp submissions).
-- **Similarity search** — multilingual `pgvector` cosine search finds variants of the same claim.
-- **Domain-based Source Router** — maps claim domain (health, election, government, finance) to trusted Nepali sources.
-- **Explainable verdict card** — verdict + rationale + confidence + fact-check evidence URLs, with a *"Unverified – needs human review"* fallback.
-- **Priority / risk score** — weighted formula (velocity × reach × domain-sensitivity × verdict-confidence) to triage what to debunk first.
-- **Nepali + English** — multilingual embeddings + LLM reasoning handle Devanagari, Romanized Nepali, English, and mixed text.
-- **Live submission form** — a "Report a claim" box writes into the same pipeline (the WhatsApp story, without scraping private groups).
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Backend / API** | [FastAPI](https://fastapi.tiangolo.com/) (Python) |
-| **Database** | [Supabase](https://supabase.com/) Postgres + [`pgvector`](https://github.com/pgvector/pgvector) |
-| **Auth / Storage / Realtime** | Supabase Auth, Storage, Realtime |
-| **AI — embeddings** | Google Gemini `gemini-embedding-001` (multilingual) |
-| **AI — reasoning / extraction** | Google Gemini `gemini-1.5-flash` |
-| **Vector search** | `pgvector` cosine similarity via Supabase RPC (`match_variants`) |
-| **Frontend** | React + Vite + Tailwind CSS |
-| **Graph visualization** | React Flow (mutation tree) |
-| **Charts** | Recharts (velocity + platform breakdown) |
-| **Data pipeline** | `datasets`, `pandas`, `tenacity` |
-
----
-
-## Architecture
-
-
-flowchart TD
-    A[Ingest claim: text / image / seed row] --> B[Gemini: extract core claim + domain]
-    B --> C[Gemini embedding -> vector]
-    C --> D[pgvector similarity search in Supabase]
-    D --> E[Cluster variants + build mutation tree by time + similarity]
-    E --> F[Compute velocity + platform reach + priority score]
-    F --> G[Source Router: domain -> trusted sources -> Gemini verdict]
-    G --> H[React dashboard: tree + velocity chart + verdict]
-
-
-The data is **seeded** from real Nepali fact-check datasets, but the analysis (embeddings, clustering, tree reconstruction, velocity) is **100% real**.
-
----
-
-## Datasets
-
-Root claims and verdicts draw on **real Nepali fact-check datasets**; spread dynamics (platform, timing, mutation lineage) are reconstructed by the pipeline and augmented with live submissions.
-
-| Dataset | Role |
-|---|---|
-| [`theonlysanjeev/nepal-ooc-misinformation`](https://huggingface.co/datasets/theonlysanjeev/nepal-ooc-misinformation) (NepOOC) | Real `posted_date` (velocity slice) + fact-check `article_url` evidence + entities |
-| [`cair-nepal/MisDetect-CAIR`](https://huggingface.co/datasets/cair-nepal/MisDetect-CAIR) | `rationale` + `claim_type` + confidence for the verdict card (MIT licensed) |
-| [`chhatramani/nepali-fake-news-dataset-v1`](https://huggingface.co/datasets/chhatramani/nepali-fake-news-dataset-v1) | Labeled Nepali (Devanagari) root claims by domain |
-| **Gemini variant generator** | Synthetic variants w/ platform + timestamp + parent hints — the engine of the mutation tree + velocity |
-
-> Confirm the NepOOC license before redistributing it in a public repo/demo.
-
----
-
-## Project Structure
+## Layout
 
 ```
-.
-├── backend/
-│   ├── config.py            # env-based configuration
-│   ├── db.py                # Supabase client + insert helpers
-│   ├── embeddings.py        # Gemini multilingual embeddings
-│   ├── variant_generator.py # synthetic variant engine (tree + velocity fuel)
-│   ├── tree.py              # parent/lineage reconstruction
-│   ├── load_all.py          # dataset loader orchestrator (CLI)
-│   ├── loaders/             # per-dataset loaders (nepoc, misdetect, chhatramani)
-│   ├── schema.sql           # Supabase schema (claims, variants, match_variants RPC)
-│   ├── requirements.txt
-│   └── .env.example
-└── frontend/                # React + Vite + Tailwind dashboard
+backend/
+├── app/
+│   ├── main.py                 # FastAPI app, CORS, routers under /api
+│   ├── config/config.py        # pydantic-settings (Supabase + Gemini + limits)
+│   ├── core/supabase.py        # Supabase clients + insert helpers + JWT auth
+│   ├── routes/
+│   │   ├── health.py           # GET /api/health
+│   │   ├── auth.py             # Supabase sign-up / sign-in / me
+│   │   └── claims.py           # ingest + tree + velocity + platforms
+│   ├── schemas/                # pydantic request/response models
+│   ├── services/
+│   │   ├── embeddings.py       # Gemini multilingual embeddings
+│   │   ├── variant_generator.py# synthetic variants (tree + velocity fuel)
+│   │   ├── tree.py             # mutation-tree reconstruction
+│   │   ├── source_router.py    # domain -> trusted Nepali sources
+│   │   └── pipeline.py         # ingest/tree/velocity/platforms orchestration
+│   ├── data/
+│   │   ├── loaders/            # nepoc / misdetect / chhatramani + common
+│   │   ├── load_all.py         # dataset loader orchestrator (CLI)
+│   │   └── verify_supabase.py  # schema + insert round-trip check
+│   └── utils/logger.py
+├── schema.sql                  # claims + variants (pgvector) + match_variants RPC
+├── requirements.txt
+├── Dockerfile
+└── .env.example
 ```
 
----
+## API
 
-## Getting the project started
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/health` | health check |
+| POST | `/api/auth/register` | Supabase sign-up → `{ access_token }` |
+| POST | `/api/auth/login` | Supabase sign-in → `{ access_token }` |
+| GET | `/api/auth/me` | current user (Bearer token) |
+| POST | `/api/claims/ingest` | `{ text }` → extract + embed + store + verdict |
+| GET | `/api/claims` | list recent claims |
+| GET | `/api/claims/{id}/tree` | mutation tree `{ nodes, edges }` |
+| GET | `/api/claims/{id}/velocity` | variants-per-day `[{ bucket, count }]` |
+| GET | `/api/claims/{id}/platforms` | platform breakdown `[{ platform, count }]` |
 
-### Prerequisites
+## Setup
 
-- Python 3.10+
-- A [Supabase](https://supabase.com/) project
-- A [Google Gemini](https://ai.google.dev/) API key
+1. **Create a Supabase project**, then run `schema.sql` in the SQL editor
+   (enables `pgvector`, creates/updates tables + the `match_variants` RPC).
+2. **Configure env:**
+   ```powershell
+   Copy-Item .env.example .env
+   # edit .env: SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_ANON_KEY,
+   #            SUPABASE_JWT_SECRET, GEMINI_API_KEY
+   ```
+   > `EMBEDDING_DIM` must match the `vector(768)` size in `schema.sql`.
+3. **Build and run the API with Docker Compose:**
+   ```powershell
+   docker compose build --no-cache
+   docker compose up
+   ```
+   Swagger UI: http://localhost:8000/docs
 
-### 1. Set up Supabase
+4. **Verify Supabase schema and basic inserts:**
+   ```powershell
+   docker compose exec backend python -m app.data.verify_supabase
+   ```
+   If this reports a missing column, re-run `schema.sql` in the Supabase SQL editor and run the check again.
+   The check confirms `claims`, `variants`, `match_variants`, `vector(768)`, and a minimal claim/variant insert-read-cleanup round trip.
 
-Create a project, then run [`backend/schema.sql`](backend/schema.sql) once in the Supabase SQL editor. It enables `pgvector`, creates the `claims` + `variants` tables, indexes, and the `match_variants` similarity RPC.
+## Seed the datasets
 
-### 2. Configure the backend
+Run from the `backend/` directory:
 
-```bash
-cd backend
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env   # then fill in your keys
+```powershell
+docker compose exec backend python -m app.data.load_all --preview              # validate dataset normalization only
+docker compose exec backend python -m app.data.load_all --all                  # everything (recommended)
+docker compose exec backend python -m app.data.load_all --nepoc                # real Nepal dates + evidence
+docker compose exec backend python -m app.data.load_all --misdetect            # verdict/rationale slice
+docker compose exec backend python -m app.data.load_all --chhatramani --generate # roots + synthetic mutation tree
 ```
 
-Fill in `.env`:
+The **datasets provide credibility** (real Nepali claims, dates, verdicts); the
+**variant generator provides the spread structure** (platform, timestamp,
+parent lineage) that the mutation tree and velocity chart are built from.
 
-```env
-SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key
-GEMINI_API_KEY=your-gemini-api-key
-```
+## Notes
 
-### 3. Load the data
-
-```bash
-# everything: real datasets + synthetic variant generation
-python load_all.py --all
-
-# or pick sources
-python load_all.py --chhatramani --generate   # Nepali roots + synthetic tree
-python load_all.py --nepoc --misdetect         # real dates + verdict slice
-```
-
-### 4. Run the frontend
-
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
-
----
-
-## Loader CLI
-
-| Command | What it does |
-|---|---|
-| `python load_all.py --all` | Runs every loader + variant generation |
-| `python load_all.py --chhatramani --generate` | Loads Nepali root claims and generates synthetic variants (mutation tree) |
-| `python load_all.py --nepoc` | Loads NepOOC real dates + fact-check evidence |
-| `python load_all.py --misdetect` | Loads a labeled MisDetect verdict/rationale slice |
-
-
----
-
-## Roadmap
-
-- Speech-to-text ingestion (Whisper) for WhatsApp voice notes
-- Live platform connectors (Facebook Graph, YouTube Data API)
-- Supabase Realtime auto-refreshing dashboard
-- Redis / background workers for scheduled monitoring
-- Journalist authentication + saved investigations
-
----
-
-## Security Notes
-
-- Never ship the Supabase **service-role** key to the frontend — it's server-side only (loaders/API).
-- Keep API keys in `.env` (git-ignored), never hardcoded or committed.
-
----
-## Team 
-
-Utsab Pandit (Leader)
-Shaswat Khatry (Co-leader)
-Pritesh Raj Chaudhary
-Tejash Shrestha
-
-
-
-
+- Loaders tolerate column-name variance (`app/data/loaders/common.py`).
+- Keep `NEPOC_CLAIM_GROUPS` / `MISDETECT_ROWS_PER_DOMAIN` /
+  `CHHATRAMANI_ROOT_CLAIMS` small — a demo needs a believable graph, not scale.
+  If `--misdetect` reports hundreds of rows, lower `MISDETECT_ROWS_PER_DOMAIN`
+  in `backend/.env`; Docker Compose loads the real `.env` value over the code default.
+- The **service-role key** bypasses RLS — keep `.env` server-side, never ship
+  it to the frontend. Auth uses the **anon key**.
+- Confirm the **NepOOC license** before redistributing its rows publicly.
+- Tests: `pytest` (a health smoke test is included).
+>>>>>>> shashwat
