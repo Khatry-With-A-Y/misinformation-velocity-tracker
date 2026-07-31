@@ -1,0 +1,25 @@
+# Environment variables
+.env
+.env.local
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.db
+docs
+tests
+
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+#backend
+backend/app/logs/dev
