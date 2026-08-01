@@ -5,7 +5,6 @@ import { AlertTriangle, Send } from 'lucide-react'
 import { BreakdownPanels } from '../components/dashboard/BreakdownPanels'
 import { ClaimSummary } from '../components/dashboard/ClaimSummary'
 import { ClaimFilters } from '../components/dashboard/ClaimFilters'
-import { DashboardNav } from '../components/dashboard/DashboardNav'
 import { FreshnessStrip } from '../components/dashboard/FreshnessStrip'
 import { RankingTable } from '../components/dashboard/RankingTable'
 import { MutationExplorer } from '../components/dashboard/MutationExplorer'
@@ -25,7 +24,7 @@ import {
   listClaims,
   type ClaimAnalytics,
   type ClaimContext,
-  type DashboardView,
+  type ClaimScope,
   type Period,
   type RankingItem,
   type ClaimTree,
@@ -33,6 +32,12 @@ import {
 } from '../lib/api'
 
 const CLAIM_PAGE_SIZE = 25
+
+const claimScopes: { id: ClaimScope; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'verified', label: 'Verified false' },
+  { id: 'live', label: 'Live news' },
+]
 
 function ErrorState({ message }: { message: string }) {
   return (
@@ -56,7 +61,7 @@ export default function Dashboard() {
 
   const [text, setText] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
-  const [view, setView] = useState<DashboardView>('overview')
+  const [scope, setScope] = useState<ClaimScope>('all')
   const [period, setPeriod] = useState<Period>('week')
   const [search, setSearch] = useState('')
 
@@ -93,8 +98,8 @@ export default function Dashboard() {
         page: claimsPage,
         limit: CLAIM_PAGE_SIZE,
         query: search || undefined,
-        tier: view === 'verified' ? 'verified_false' : undefined,
-        platform: view === 'live' ? 'news' : undefined,
+        tier: scope === 'verified' ? 'verified_false' : undefined,
+        platform: scope === 'live' ? 'news' : undefined,
         period,
       })
       const items = Array.isArray(data) ? data : data.items
@@ -105,11 +110,11 @@ export default function Dashboard() {
     } finally {
       setClaimsLoading(false)
     }
-  }, [claimsPage, period, search, view])
+  }, [claimsPage, period, search, scope])
 
   useEffect(() => {
     setClaimsPage(1)
-  }, [period, search, view])
+  }, [period, search, scope])
 
   const refreshNewsStatus = useCallback(async () => {
     setNewsStatusError(null)
@@ -291,7 +296,6 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <DashboardNav value={view} onChange={setView} />
       <FreshnessStrip
         status={newsStatus}
         error={newsStatusError}
@@ -330,39 +334,46 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className={`grid gap-6 ${view === 'overview' ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
-        {view !== 'live' && (
-          <RankingTable
-            title="Verified false claims"
-            items={verifiedRankings}
-            loading={rankingsLoading}
-            error={verifiedError}
-            onSelect={setSelectedId}
-          />
-        )}
-        {view !== 'verified' && (
-          <RankingTable
-            title="AI flagged claims"
-            items={aiRankings}
-            loading={rankingsLoading}
-            error={aiError}
-            onSelect={setSelectedId}
-            ai
-          />
-        )}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <RankingTable
+          title="Verified false claims"
+          items={verifiedRankings}
+          loading={rankingsLoading}
+          error={verifiedError}
+          onSelect={setSelectedId}
+        />
+        <RankingTable
+          title="AI flagged claims"
+          items={aiRankings}
+          loading={rankingsLoading}
+          error={aiError}
+          onSelect={setSelectedId}
+          ai
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="self-start lg:col-span-1">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">
-              {view === 'verified'
-                ? 'Verified corpus'
-                : view === 'live'
-                  ? 'Monitored claims'
-                  : 'Tracked claims'}
-            </CardTitle>
+            <CardTitle className="text-lg">Tracked claims</CardTitle>
             <p className="text-sm text-muted-foreground">Select a claim to open its investigation.</p>
+            <div className="mt-2 flex rounded-md border border-border bg-background p-1" aria-label="Claim scope">
+              {claimScopes.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setScope(option.id)}
+                  aria-pressed={scope === option.id}
+                  className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    scope === option.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent>
             {claimsLoading && claims.length === 0 ? (

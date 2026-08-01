@@ -27,7 +27,7 @@ export interface ClaimContext extends Claim {
 }
 
 export type Period = 'day' | 'week' | 'month' | 'year'
-export type DashboardView = 'overview' | 'verified' | 'live'
+export type ClaimScope = 'all' | 'verified' | 'live'
 
 export interface ClaimPage {
   items: ClaimContext[]

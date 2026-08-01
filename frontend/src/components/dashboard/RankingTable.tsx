@@ -35,8 +35,8 @@ export function RankingTable({
           <span
             className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
               ai
-                ? 'border-amber-700/40 text-amber-700 dark:border-amber-300/40 dark:text-amber-300'
-                : 'border-destructive/40 text-destructive'
+                ? 'border-purple-700 bg-purple-600 text-white'
+                : 'border-red-700 bg-red-600 text-white'
             }`}
           >
             {ai ? 'AI signal' : 'Verified'}

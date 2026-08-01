@@ -38,20 +38,20 @@ export function trustTreatment(tier?: ClaimContext['tier'] | null) {
     return {
       label: 'Verified false',
       description: 'Evidence-backed false claim',
-      className: 'bg-destructive/10 text-destructive',
+      className: 'bg-destructive text-destructive-foreground',
     }
   }
   if (tier === 'AI_FLAGGED') {
     return {
       label: 'AI flagged',
       description: 'Automated signal, not a verified fact-check',
-      className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+      className: 'bg-purple-600 text-white',
     }
   }
   return {
     label: 'Not yet verified',
     description: 'No evidence-backed verdict has been recorded',
-    className: 'bg-muted text-muted-foreground',
+    className: 'bg-yellow-400 text-yellow-950',
   }
 }
 

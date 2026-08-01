@@ -3,11 +3,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ClaimContext } from '../../lib/api'
 import { Button } from '../ui/Button'
 import {
-  claimTrend,
   formatObservedDate,
   provenanceLabel,
   recommendedAction,
-  trendLabel,
   trustTreatment,
 } from './claimContext'
 
@@ -33,10 +31,9 @@ export function TrackedClaimList({
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   return (
     <div className="space-y-4">
-      <ul className="space-y-2">
+      <ul className="max-h-[36rem] space-y-2 overflow-y-auto pr-1">
         {claims.map((claim) => {
           const trust = trustTreatment(claim.tier)
-          const trend = trendLabel(claimTrend(claim.current_count, claim.previous_count))
           return (
             <li key={claim.id}>
               <button
@@ -58,9 +55,6 @@ export function TrackedClaimList({
                   </span>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
                     {claim.variant_count ?? 0} observed
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
-                    {trend}
                   </span>
                 </span>
                 <span className="mt-2.5 grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-2">
