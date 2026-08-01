@@ -26,17 +26,17 @@ export function ClaimFilters({
           className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </label>
-      <div className="flex rounded-md border border-border p-1" aria-label="Ranking period">
+      <div className="flex rounded-md border border-border bg-card p-1" aria-label="Ranking period">
         {periods.map((option) => (
           <button
             key={option}
             type="button"
             onClick={() => onPeriod(option)}
             aria-pressed={period === option}
-            className={`rounded px-3 py-1.5 text-xs font-medium capitalize ${
+            className={`rounded px-3 py-1.5 text-xs font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               period === option
                 ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
             }`}
           >
             {option}

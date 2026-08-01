@@ -31,14 +31,16 @@ function VariantNode({ data }: NodeProps<VariantNodeData>) {
   const { item, origin } = data
   return (
     <div
-      className={`w-60 rounded-lg bg-card p-3 text-left shadow-sm ${
-        origin ? 'border-2 border-primary' : 'border border-border'
+      className={`w-60 rounded-lg border bg-card p-3 text-left transition-colors ${
+        origin ? 'border-primary ring-1 ring-primary/40' : 'border-border hover:border-input'
       }`}
     >
       <Handle type="target" position={Position.Left} className="!bg-muted-foreground" />
-      <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        <span>{origin ? 'Origin' : item.mutation_type || 'Unknown mutation'}</span>
-        <span>{item.language || 'Unknown language'}</span>
+      <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wide">
+        <span className={origin ? 'text-primary' : 'text-muted-foreground'}>
+          {origin ? 'Origin' : item.mutation_type || 'Unknown mutation'}
+        </span>
+        <span className="text-muted-foreground">{item.language || 'Unknown language'}</span>
       </div>
       <p className="mt-2 line-clamp-3 text-xs font-medium leading-relaxed text-foreground">
         {item.text || item.label}
@@ -162,33 +164,38 @@ export function MutationExplorer({ tree }: { tree: ClaimTree }) {
     [tree.nodes]
   )
   return (
-    <section className="rounded-lg border border-border bg-card p-5">
+    <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
       <div>
-        <h2 className="text-lg font-semibold">Mutation explorer</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Mutation explorer</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Read left to right from each detected origin. Arrows show inferred parent-to-child
           relationships, not proof of direct transmission.
         </p>
       </div>
-      <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs tabular-nums text-muted-foreground">
         <span>Origins: {flow.roots.length || 'Unknown'}</span>
         <span>Observed variants shown: {flow.nodes.length}</span>
         <span>
           {flow.truncated ? 'Limited to the earliest 80 variants' : 'Complete recorded tree'}
         </span>
       </div>
-      <div className="mt-2 flex flex-wrap gap-2 text-xs" aria-label="Mutation type legend">
+      <div className="mt-3 flex flex-wrap gap-1.5 text-xs" aria-label="Mutation type legend">
         {mutationTypes.map((type) => (
-          <span key={type} className="rounded bg-muted px-2 py-1 text-muted-foreground">
+          <span key={type} className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
             {type}
           </span>
         ))}
       </div>
       {flow.nodes.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">No mutations recorded.</p>
+        <div className="mt-4 rounded-md border border-dashed border-border px-6 py-12 text-center">
+          <p className="text-sm font-medium text-foreground">No mutations recorded yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            When variants of this claim are observed, their lineage will appear here.
+          </p>
+        </div>
       ) : (
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(240px,1fr)]">
-          <div className="h-[28rem] rounded-md border border-border">
+          <div className="h-[28rem] overflow-hidden rounded-md border border-border bg-background">
             <ReactFlow
               nodes={flow.nodes}
               edges={flow.edges}
@@ -198,7 +205,7 @@ export function MutationExplorer({ tree }: { tree: ClaimTree }) {
                 setSelected(tree.nodes.find((item) => item.id === node.id) || null)
               }
             >
-              <Background />
+              <Background color="var(--border)" gap={20} size={1.5} />
               <Controls />
             </ReactFlow>
           </div>

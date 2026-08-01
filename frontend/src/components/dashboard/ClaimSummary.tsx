@@ -33,31 +33,35 @@ export function ClaimSummary({
     ['Next action', recommendedAction(claim)],
   ]
   return (
-    <section className="rounded-lg border border-border bg-card p-5">
+    <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Investigation summary
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+          Investigation
         </p>
-        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${trust.className}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${trust.className}`}>
           {trust.label}
         </span>
       </div>
-      <h2 className="mt-3 text-xl font-semibold leading-snug">
+      <h2 className="mt-3 text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
         {claim?.canonical || 'Selected claim'}
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">{trust.description}.</p>
-      <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
+      <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-3">
         {metrics.map(([label, value]) => (
-          <div key={label}>
+          <div key={label} className="bg-card px-3.5 py-3">
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-1 text-base font-semibold">{value}</dd>
+            <dd className="mt-1 truncate text-base font-semibold tabular-nums" title={String(value)}>
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
-      <div className="mt-5 grid gap-3 border-t border-border pt-4 text-sm sm:grid-cols-2">
+      <div className="mt-6 grid gap-5 text-sm sm:grid-cols-2">
         <div>
-          <p className="font-medium text-foreground">Origin</p>
-          <p className="mt-1 text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Origin
+          </p>
+          <p className="mt-1.5 leading-relaxed text-foreground">
             {root ? root.text || root.label : 'Root variant not identified'}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -72,8 +76,10 @@ export function ClaimSummary({
           )}
         </div>
         <div>
-          <p className="font-medium text-foreground">Evidence posture</p>
-          <p className="mt-1 text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Evidence
+          </p>
+          <p className="mt-1.5 leading-relaxed text-foreground">
             {claim?.evidence_title || claim?.rationale || 'No evidence note recorded.'}
           </p>
           {claim?.evidence_url ? (
@@ -90,7 +96,7 @@ export function ClaimSummary({
           )}
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+      <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
         <p>First seen: {formatObservedDate(claim?.first_seen || summary.first_seen)}</p>
         <p>Last seen: {formatObservedDate(claim?.last_seen || summary.last_seen)}</p>
       </div>

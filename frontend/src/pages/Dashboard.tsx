@@ -36,17 +36,17 @@ const CLAIM_PAGE_SIZE = 25
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-muted-foreground">
-      <AlertTriangle className="h-6 w-6 text-destructive" />
-      <p>{message}</p>
+    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+      <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+      <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
     </div>
   )
 }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex items-center justify-center py-10 text-center text-muted-foreground">
-      {message}
+    <div className="flex items-center justify-center px-6 py-12 text-center">
+      <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{message}</p>
     </div>
   )
 }
@@ -131,7 +131,7 @@ export default function Dashboard() {
     if (verified.status === 'fulfilled') setVerifiedRankings(verified.value)
     else setVerifiedError('Verified rankings are temporarily unavailable.')
     if (ai.status === 'fulfilled') setAiRankings(ai.value)
-    else setAiError('Realtime AI rankings are temporarily unavailable.')
+    else setAiError('AI flag rankings are temporarily unavailable.')
     setRankingsLoading(false)
   }, [period])
 
@@ -238,7 +238,7 @@ export default function Dashboard() {
     } catch (error) {
       showNotification(
         dispatch,
-        error instanceof Error ? error.message : 'Analysis failed — please try again.',
+        error instanceof Error ? error.message : 'Analysis failed. Please try again.',
         'error'
       )
     } finally {
@@ -280,11 +280,14 @@ export default function Dashboard() {
     <div className="space-y-7">
       <div className="max-w-3xl">
         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
-          Evidence and monitoring
+          GuffGuard desk
         </p>
-        <h1 className="text-3xl font-bold text-foreground">Misinformation intelligence</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Misinformation intelligence
+        </h1>
         <p className="mt-2 text-base text-muted-foreground">
-          Compare evidence-backed false claims with clearly labeled realtime AI signals.
+          Evidence-backed false claims side by side with AI signals. AI output is a signal, not
+          verified fact.
         </p>
       </div>
 
@@ -299,22 +302,29 @@ export default function Dashboard() {
       <ClaimFilters search={search} onSearch={setSearch} period={period} onPeriod={setPeriod} />
 
       <Card>
-        <CardHeader>
-          <CardTitle>Analyze a claim</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg">Analyze a claim</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Paste a claim in Nepali or English. The result is an AI signal, not verified fact.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
+          <label htmlFor="claim-input" className="sr-only">
+            Claim text
+          </label>
           <textarea
+            id="claim-input"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Paste a claim in Nepali or English…"
-            rows={4}
-            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            placeholder="For example: A viral post says a new tax applies to all remittances…"
+            rows={3}
+            className="flex w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             disabled={analyzing}
           />
           <div className="flex justify-end">
             <Button onClick={handleAnalyze} disabled={analyzing}>
               {analyzing ? <Spinner size="sm" className="text-primary-foreground" /> : <Send />}
-              {analyzing ? 'Analyzing…' : 'Analyze'}
+              {analyzing ? 'Analyzing…' : 'Analyze claim'}
             </Button>
           </div>
         </CardContent>
@@ -332,7 +342,7 @@ export default function Dashboard() {
         )}
         {view !== 'verified' && (
           <RankingTable
-            title="Realtime AI flags"
+            title="AI flagged claims"
             items={aiRankings}
             loading={rankingsLoading}
             error={aiError}
@@ -343,15 +353,16 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>
+        <Card className="self-start lg:col-span-1">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">
               {view === 'verified'
                 ? 'Verified corpus'
                 : view === 'live'
                   ? 'Monitored claims'
-                  : 'All claims'}
+                  : 'Tracked claims'}
             </CardTitle>
+            <p className="text-sm text-muted-foreground">Select a claim to open its investigation.</p>
           </CardHeader>
           <CardContent>
             {claimsLoading && claims.length === 0 ? (
@@ -390,9 +401,9 @@ export default function Dashboard() {
 
         <div className="lg:col-span-2 space-y-6">
           {!selectedId ? (
-            <Card>
-              <CardContent>
-                <EmptyState message="Select a claim to see its mutation tree, velocity, and platform breakdown." />
+            <Card className="border-dashed bg-transparent shadow-none">
+              <CardContent className="pt-6">
+                <EmptyState message="Nothing selected yet. Pick a claim on the left to see its mutation tree, velocity, and platform breakdown." />
               </CardContent>
             </Card>
           ) : detailLoading && !tree && !analytics ? (
@@ -414,7 +425,7 @@ export default function Dashboard() {
           ) : (
             <>
               {detailWarning && (
-                <p className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">
+                <p className="rounded-md border border-border bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
                   {detailWarning}
                 </p>
               )}

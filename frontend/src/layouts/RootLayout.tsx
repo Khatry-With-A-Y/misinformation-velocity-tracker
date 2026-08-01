@@ -1,8 +1,8 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Radar } from 'lucide-react'
 import { AppProvider } from '../context/AppContext'
 import { Notification } from '../components/ui/Notification'
 import { ThemeToggle } from '../components/ui/ThemeToggle'
+import { BrandMark } from '../components/ui/BrandMark'
 import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/ui/Button'
 
@@ -17,8 +17,8 @@ function Navigation() {
   const location = useLocation()
   const { isAuthenticated, logout } = useAuth()
   const linkBase =
-    'text-card-foreground hover:text-primary hover:bg-accent/20 px-3 py-2 rounded-md text-sm font-medium transition-colors'
-  const activeLink = 'text-primary font-semibold underline underline-offset-4'
+    'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  const activeLink = 'bg-secondary text-foreground'
 
   const handleLogout = () => {
     logout()
@@ -26,51 +26,63 @@ function Navigation() {
   }
 
   return (
-    <nav className="bg-card text-card-foreground shadow-sm transition-colors">
-      <div className="container mx-auto px-6">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center space-x-8">
-            <Link to="/" className="flex items-center gap-2 font-semibold text-foreground">
-              <Radar className="h-5 w-5 text-primary" />
-              <span>Misinformation Velocity Tracker</span>
+    <header className="sticky top-0 z-40 border-b border-border bg-card transition-colors">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-6">
+            <Link
+              to="/"
+              className="flex shrink-0 items-center gap-2 rounded-md font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <BrandMark className="h-5 w-5 text-primary" />
+              <span>GuffGuard</span>
             </Link>
-            {publicNavLinks.map(({ to, label }) => (
-              <Link
-                key={to}
-                to={to}
-                className={location.pathname === to ? `${linkBase} ${activeLink}` : linkBase}
-              >
-                {label}
-              </Link>
-            ))}
+            <div className="hidden items-center gap-1 sm:flex">
+              {publicNavLinks.map(({ to, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-current={location.pathname === to ? 'page' : undefined}
+                  className={location.pathname === to ? `${linkBase} ${activeLink}` : linkBase}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2">
             <ThemeToggle />
             {isAuthenticated ? (
-              <Button
-                variant="ghost"
-                onClick={handleLogout}
-                className="text-card-foreground hover:text-primary hover:bg-accent/20"
-              >
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
                 Logout
               </Button>
             ) : (
-              <div className="flex items-center space-x-2">
-                <span className="hidden text-xs text-muted-foreground md:inline">
-                  No account required
-                </span>
-                <Link
-                  to="/login"
-                  className={location.pathname === '/login' ? `${linkBase} ${activeLink}` : linkBase}
-                >
-                  Login
-                </Link>
-              </div>
+              <Link
+                to="/login"
+                aria-current={location.pathname === '/login' ? 'page' : undefined}
+                className={
+                  location.pathname === '/login' ? `${linkBase} ${activeLink}` : linkBase
+                }
+              >
+                Login
+              </Link>
             )}
           </div>
         </div>
-      </div>
-    </nav>
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 sm:hidden">
+          {publicNavLinks.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              aria-current={location.pathname === to ? 'page' : undefined}
+              className={location.pathname === to ? `${linkBase} ${activeLink}` : linkBase}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    </header>
   )
 }
 
@@ -79,16 +91,19 @@ export default function RootLayout() {
 
   return (
     <AppProvider>
-      <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
+      <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors">
         <Navigation />
-        <main className="flex-1 container mx-auto px-6 py-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:py-10">
           <Outlet />
         </main>
-        <footer className="bg-card text-card-foreground shadow-sm transition-colors mt-auto">
-          <div className="container mx-auto px-6 py-4">
-            <p className="text-center text-muted-foreground">
-              {currentYear} Misinformation Velocity Tracker. Built for journalists and
-              fact-checkers in Nepal.
+        <footer className="mt-auto border-t border-border bg-card transition-colors">
+          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-5 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="flex items-center gap-2 font-medium text-foreground">
+              <BrandMark className="h-4 w-4 text-primary" />
+              GuffGuard
+            </p>
+            <p className="text-muted-foreground">
+              {currentYear}. Built for journalists and fact-checkers in Nepal.
             </p>
           </div>
         </footer>

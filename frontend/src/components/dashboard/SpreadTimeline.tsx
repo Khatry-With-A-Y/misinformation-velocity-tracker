@@ -23,8 +23,8 @@ export function SpreadTimeline({ data }: { data: TimelinePoint[] }) {
       : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }
   return (
-    <section className="rounded-lg border border-border bg-card p-5">
-      <h2 className="text-lg font-semibold">Spread over time</h2>
+    <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
+      <h2 className="text-lg font-semibold tracking-tight">Spread over time</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Daily observations and cumulative variants, not estimated audience reach.
       </p>
@@ -34,14 +34,14 @@ export function SpreadTimeline({ data }: { data: TimelinePoint[] }) {
         </p>
       ) : (
         <>
-          <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+          <dl className="mt-4 flex flex-wrap gap-x-10 gap-y-2 text-sm">
             <div>
-              <dt className="text-muted-foreground">Recorded total</dt>
-              <dd className="font-semibold">{total} observations</dd>
+              <dt className="text-xs text-muted-foreground">Recorded total</dt>
+              <dd className="mt-0.5 font-semibold tabular-nums">{total} observations</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Peak day</dt>
-              <dd className="font-semibold">
+              <dt className="text-xs text-muted-foreground">Peak day</dt>
+              <dd className="mt-0.5 font-semibold tabular-nums">
                 {peak?.count || 0} on {peak ? compactDate(peak.date) : 'Unknown'}
               </dd>
             </div>
@@ -49,21 +49,50 @@ export function SpreadTimeline({ data }: { data: TimelinePoint[] }) {
           <div className="mt-5 h-72">
             <ResponsiveContainer>
               <ComposedChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="date"
                   fontSize={11}
+                  tick={{ fill: 'var(--muted-foreground)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
+                  tickLine={{ stroke: 'var(--border)' }}
                   tickFormatter={compactDate}
-                  label={{ value: 'Observation date', position: 'insideBottom', offset: -4 }}
+                  label={{
+                    value: 'Observation date',
+                    position: 'insideBottom',
+                    offset: -4,
+                    fill: 'var(--muted-foreground)',
+                    fontSize: 11,
+                  }}
                   height={48}
                 />
                 <YAxis
                   allowDecimals={false}
                   fontSize={11}
-                  label={{ value: 'Observed variants', angle: -90, position: 'insideLeft' }}
+                  tick={{ fill: 'var(--muted-foreground)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  label={{
+                    value: 'Observed variants',
+                    angle: -90,
+                    position: 'insideLeft',
+                    fill: 'var(--muted-foreground)',
+                    fontSize: 11,
+                  }}
                   width={54}
                 />
                 <Tooltip
+                  cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
+                  contentStyle={{
+                    backgroundColor: 'var(--popover)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    color: 'var(--popover-foreground)',
+                    fontSize: 12,
+                    boxShadow: 'none',
+                  }}
+                  labelStyle={{ color: 'var(--muted-foreground)', marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--popover-foreground)' }}
                   labelFormatter={(value) => `Date: ${compactDate(String(value))}`}
                   formatter={(value, name) => [
                     `${value} observed variant${Number(value) === 1 ? '' : 's'}`,
@@ -73,13 +102,14 @@ export function SpreadTimeline({ data }: { data: TimelinePoint[] }) {
                 <Bar
                   dataKey="count"
                   name="Daily observations"
-                  fill="var(--primary)"
-                  opacity={0.45}
+                  fill="var(--chart-1)"
+                  opacity={0.4}
+                  radius={[3, 3, 0, 0]}
                 />
                 <Line
                   dataKey="cumulative"
                   name="Cumulative observations"
-                  stroke="var(--primary)"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
                   dot={false}
                 />

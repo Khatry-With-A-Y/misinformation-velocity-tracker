@@ -52,12 +52,15 @@ function LoginFormContent() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Login</CardTitle>
-        <CardDescription>Enter your email below to login to your account</CardDescription>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Use your GuffGuard email and password</CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-foreground">
+              Email
+            </label>
             <Input
               id="email"
               name="email"
@@ -69,6 +72,9 @@ function LoginFormContent() {
             />
           </div>
           <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium text-foreground">
+              Password
+            </label>
             <Input
               id="password"
               name="password"
@@ -81,17 +87,9 @@ function LoginFormContent() {
           </div>
           {state.error && <div className="text-sm text-destructive">{state.error}</div>}
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/register')}
-            type="button"
-            disabled={state.isLoading}
-          >
-            Register
-          </Button>
-          <Button type="submit" disabled={state.isLoading}>
-            {state.isLoading ? 'Logging in...' : 'Login'}
+        <CardFooter>
+          <Button type="submit" disabled={state.isLoading} className="w-full">
+            {state.isLoading ? 'Signing in...' : 'Sign in'}
           </Button>
         </CardFooter>
       </form>

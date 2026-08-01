@@ -1,58 +1,59 @@
 @import 'tailwindcss';
 
+/* GuffGuard palette: warm paper neutrals, ink text, one deep petrol accent. */
 :root {
-  --background: #f6f8fa;
-  --foreground: #24292f;
-  --card: #fff;
-  --card-foreground: #24292f;
-  --popover: #fff;
-  --popover-foreground: #24292f;
-  --primary: #0969da;
-  --primary-foreground: #fff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #24292f;
-  --muted: #eaeaea;
-  --muted-foreground: #57606a;
-  --accent: #2da44e;
-  --accent-foreground: #fff;
-  --destructive: #d1242f;
-  --destructive-foreground: #fff;
-  --border: #d0d7de;
-  --input: #d0d7de;
-  --ring: #0969da;
+  --background: #f5f3ee;
+  --foreground: #24272d;
+  --card: #fdfcf9;
+  --card-foreground: #24272d;
+  --popover: #fdfcf9;
+  --popover-foreground: #24272d;
+  --primary: #23606a;
+  --primary-foreground: #f7f6f2;
+  --secondary: #eceae2;
+  --secondary-foreground: #383d45;
+  --muted: #ebe8e0;
+  --muted-foreground: #666b73;
+  --accent: #e2e9e7;
+  --accent-foreground: #24272d;
+  --destructive: #a83326;
+  --destructive-foreground: #fbf7f4;
+  --border: #ddd8cc;
+  --input: #cfc9bb;
+  --ring: #23606a;
   --radius: 0.5rem;
-  --chart-1: #0969da;
-  --chart-2: #2da44e;
-  --chart-3: #d1242f;
-  --chart-4: #e3b341;
-  --chart-5: #8250df;
+  --chart-1: #23606a;
+  --chart-2: #5c7a41;
+  --chart-3: #a83326;
+  --chart-4: #a97e2c;
+  --chart-5: #6d5a7f;
 }
 
 .dark {
-  --background: #0d1117;
-  --foreground: #c9d1d9;
-  --card: #161b22;
-  --card-foreground: #c9d1d9;
-  --popover: #161b22;
-  --popover-foreground: #c9d1d9;
-  --primary: #58a6ff;
-  --primary-foreground: #0d1117;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #c9d1d9;
-  --muted: #30363d;
-  --muted-foreground: #8b949e;
-  --accent: #3fb950;
-  --accent-foreground: #0d1117;
-  --destructive: #f85149;
-  --destructive-foreground: #0d1117;
-  --border: #30363d;
-  --input: #30363d;
-  --ring: #58a6ff;
-  --chart-1: #58a6ff;
-  --chart-2: #3fb950;
-  --chart-3: #f85149;
-  --chart-4: #e3b341;
-  --chart-5: #8250df;
+  --background: #16181d;
+  --foreground: #d8d6cf;
+  --card: #1d2026;
+  --card-foreground: #d8d6cf;
+  --popover: #1d2026;
+  --popover-foreground: #d8d6cf;
+  --primary: #82b4ba;
+  --primary-foreground: #132528;
+  --secondary: #23262d;
+  --secondary-foreground: #d8d6cf;
+  --muted: #2a2e35;
+  --muted-foreground: #9298a1;
+  --accent: #24333a;
+  --accent-foreground: #d8d6cf;
+  --destructive: #dd6a5e;
+  --destructive-foreground: #1c1210;
+  --border: #2e323a;
+  --input: #3a3f48;
+  --ring: #82b4ba;
+  --chart-1: #82b4ba;
+  --chart-2: #97b074;
+  --chart-3: #dd6a5e;
+  --chart-4: #cfa14f;
+  --chart-5: #a394b6;
 }
 
 /* Tailwind v4 @theme directive */
@@ -86,7 +87,7 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
   * {
     @apply border-border;

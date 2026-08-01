@@ -13,7 +13,9 @@ function Breakdown({
   const total = data.reduce((sum, item) => sum + item.count, 0)
   return (
     <section>
-      <h3 className="text-sm font-semibold">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h3>
       {data.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">No data recorded.</p>
       ) : (
@@ -27,17 +29,17 @@ function Breakdown({
           <tbody>
             {data.slice(0, 6).map((item) => (
               <tr key={item.label}>
-                <td className="py-1.5 pr-3">
-                  <span className="block truncate">{item.label || 'Unknown'}</span>
-                  <span className="mt-1 block h-1.5 rounded bg-muted">
+                <td className="py-2 pr-3">
+                  <span className="block truncate text-foreground">{item.label || 'Unknown'}</span>
+                  <span className="mt-1.5 block h-1 rounded-full bg-muted">
                     <span
-                      className="block h-full rounded bg-primary"
+                      className="block h-full rounded-full bg-primary/70"
                       style={{ width: `${(item.count / max) * 100}%` }}
                     />
                   </span>
                 </td>
-                <td className="w-20 text-right font-medium">
-                  {item.count}
+                <td className="w-20 whitespace-nowrap text-right align-top text-xs font-medium tabular-nums text-muted-foreground">
+                  <span className="text-sm text-foreground">{item.count}</span>
                   {percentages && total > 0 ? ` (${Math.round((item.count / total) * 100)}%)` : ''}
                 </td>
               </tr>
@@ -63,15 +65,15 @@ export function BreakdownPanels({
     (a, b) => b.count - a.count || a.label.localeCompare(b.label)
   )[0]
   return (
-    <section className="rounded-lg border border-border bg-card p-5">
+    <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
       <div>
-        <h2 className="text-lg font-semibold">Where it spread</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Where it spread</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {platformTotal} recorded observations. Dominant platform:{' '}
           <span className="font-medium text-foreground">{dominant?.label || 'Unknown'}</span>.
         </p>
       </div>
-      <div className="mt-5 grid gap-6 md:grid-cols-3">
+      <div className="mt-6 grid gap-8 md:grid-cols-3 md:gap-6">
         <Breakdown title="Recorded platforms" data={platforms} percentages />
         <Breakdown title="Languages" data={languages} />
         <Breakdown title="Mutation types" data={mutations} />

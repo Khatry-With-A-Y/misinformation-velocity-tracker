@@ -67,12 +67,15 @@ function RegisterFormContent() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Register</CardTitle>
-        <CardDescription>Create a new account</CardDescription>
+        <CardTitle>Create your account</CardTitle>
+        <CardDescription>Start tracking claims with GuffGuard</CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-foreground">
+              Email
+            </label>
             <Input
               id="email"
               name="email"
@@ -84,6 +87,9 @@ function RegisterFormContent() {
             />
           </div>
           <div className="space-y-2">
+            <label htmlFor="username" className="text-sm font-medium text-foreground">
+              Username
+            </label>
             <Input
               id="username"
               name="username"
@@ -95,6 +101,9 @@ function RegisterFormContent() {
             />
           </div>
           <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium text-foreground">
+              Password
+            </label>
             <Input
               id="password"
               name="password"
@@ -106,6 +115,9 @@ function RegisterFormContent() {
             />
           </div>
           <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
+              Confirm password
+            </label>
             <Input
               id="confirmPassword"
               name="confirmPassword"
@@ -118,17 +130,9 @@ function RegisterFormContent() {
           </div>
           {state.error && <div className="text-sm text-destructive">{state.error}</div>}
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/login')}
-            type="button"
-            disabled={state.isLoading}
-          >
-            Login
-          </Button>
-          <Button type="submit" disabled={state.isLoading}>
-            {state.isLoading ? 'Creating account...' : 'Register'}
+        <CardFooter>
+          <Button type="submit" disabled={state.isLoading} className="w-full">
+            {state.isLoading ? 'Creating account...' : 'Create account'}
           </Button>
         </CardFooter>
       </form>
