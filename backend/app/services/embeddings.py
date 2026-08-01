@@ -1,6 +1,9 @@
 """Gemini multilingual embeddings (handles English, Devanagari, Romanized Nepali)."""
+from functools import lru_cache
+
 from google import genai
-from tenacity import retry, stop_after_attempt, wait_exponential
+from google.genai.errors import ClientError
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import get_settings
 
@@ -8,9 +11,22 @@ settings = get_settings()
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(min=1, max=20))
+def _is_retryable_error(exception: BaseException) -> bool:
+    """Retry only rate limits (429) and transient server errors (500/503)."""
+    if isinstance(exception, ClientError):
+        return exception.code in (429, 500, 503)
+    return False
+
+
+@lru_cache(maxsize=1024)
+@retry(
+    retry=retry_if_exception(_is_retryable_error),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(min=2, max=60),
+    reraise=True,
+)
 def embed_text(text: str) -> list[float]:
-    """Return an embedding vector for a single piece of text."""
+    """Return an embedding vector for a single piece of text (cached)."""
     resp = _client.models.embed_content(
         model=settings.EMBEDDING_MODEL,
         contents=text,

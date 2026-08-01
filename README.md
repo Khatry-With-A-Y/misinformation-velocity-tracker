@@ -93,11 +93,16 @@ Run from the `backend/` directory:
 
 ```powershell
 docker compose exec backend python -m app.data.load_all --preview              # validate dataset normalization only
-docker compose exec backend python -m app.data.load_all --all                  # everything (recommended)
+docker compose exec backend python -m app.data.load_all --all --replace-source # safely restore all dataset slices
 docker compose exec backend python -m app.data.load_all --nepoc                # real Nepal dates + evidence
 docker compose exec backend python -m app.data.load_all --misdetect            # verdict/rationale slice
 docker compose exec backend python -m app.data.load_all --chhatramani --generate # roots + synthetic mutation tree
 ```
+
+`--replace-source` deletes only claims owned by each selected Hugging Face
+dataset before reloading it. Demo, user-submitted, and realtime news records are
+preserved. Synthetic Chhatramani variants are generated only when `--generate`
+is explicitly supplied because generation consumes additional Gemini quota.
 
 The **datasets provide credibility** (real Nepali claims, dates, verdicts); the
 **variant generator provides the spread structure** (platform, timestamp,

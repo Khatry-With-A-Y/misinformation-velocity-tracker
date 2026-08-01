@@ -11,6 +11,21 @@ services:
     volumes:
       - ./backend:/app
 
+  news-poller:
+    build: ./backend
+    command: python -m app.workers.news_poller
+    healthcheck:
+      disable: true
+    env_file:
+      - ./backend/.env
+    environment:
+      ENVIRONMENT: development
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - ./backend:/app
+
   frontend:
     build: ./frontend
     ports:

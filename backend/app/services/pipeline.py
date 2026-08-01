@@ -6,7 +6,7 @@ ingest -> extract core claim + domain (Gemini) -> embed -> store in Supabase
 """
 import json
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from google import genai
 from google.genai import types
@@ -33,12 +33,17 @@ Given a raw message (Nepali Devanagari, Romanized Nepali, English, or mixed),
 extract its core factual claim and classify its topic and language. Do not
 assess whether the claim is true or false.
 
+IMPORTANT: Always translate the canonical claim into English regardless of the
+input language. This ensures that semantically identical claims in different
+languages (e.g. "Tato pani le dengue hunchha" and "Drinking hot water cures
+dengue fever") produce the same canonical form.
+
 MESSAGE:
 {text}
 
 Return ONLY JSON with these exact keys:
 {{
-  "canonical": "the normalized core factual claim in the message's main language",
+  "canonical": "the normalized core factual claim translated into English",
   "domain": "health | election | government | finance | education | other",
   "language": "en | ne | romanized | mixed"
 }}"""
@@ -121,26 +126,44 @@ def ingest_claim(
     }
 
 
-def list_claims(limit: int = 100) -> list[dict]:
-    """Return recent claims (most recent first)."""
-    res = (
-        db.get_anon_client()
-        .table("claims")
-        .select(
-            "id,canonical,domain,language,label,source,verdict,rationale,created_at"
-        )
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return res.data or []
+def list_claims(limit: int = 100, page: int | None = None, query: str | None = None,
+                source: str | None = None, domain: str | None = None,
+                language: str | None = None, tier: str | None = None,
+                period: str | None = None,
+                platform: str | None = None) -> list[dict] | dict:
+    """Return bounded tracked-claim context with an opt-in page envelope."""
+    offset = ((page or 1) - 1) * limit
+    result = db.get_anon_client().rpc("claim_list_context", {
+        "p_limit": limit,
+        "p_offset": offset,
+        "p_query": query,
+        "p_source": source,
+        "p_domain": domain,
+        "p_language": language,
+        "p_tier": tier.upper() if tier else None,
+        "p_period": period,
+        "p_platform": platform,
+    }).execute()
+    payload = result.data or {"items": [], "total": 0}
+    items = payload.get("items") or []
+    if page is None:
+        return items
+    total = int(payload.get("total") or 0)
+    return {
+        "items": items,
+        "total": total,
+        "next_cursor": str(page + 1) if offset + len(items) < total else None,
+    }
 
 
 def _fetch_variants(claim_id: str) -> list[dict]:
     res = (
         db.get_anon_client()
         .table("variants")
-        .select("id,text,platform,ts,parent_id,mutation_type")
+        .select(
+            "id,text,platform,ts,parent_id,mutation_type,language,source,"
+            "confidence,evidence_url,evidence_title"
+        )
         .eq("claim_id", claim_id)
         .execute()
     )
@@ -157,9 +180,15 @@ def get_tree(claim_id: str) -> dict:
         nodes.append({
             "id": v["id"],
             "label": text[:80] + ("…" if len(text) > 80 else ""),
+            "text": text,
             "platform": v.get("platform"),
             "ts": v.get("ts"),
             "mutation_type": v.get("mutation_type"),
+            "language": v.get("language"),
+            "source": v.get("source"),
+            "confidence": v.get("confidence"),
+            "evidence_url": v.get("evidence_url"),
+            "evidence_title": v.get("evidence_title"),
         })
         parent = v.get("parent_id")
         if parent and parent in ids:

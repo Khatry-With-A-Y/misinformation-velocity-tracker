@@ -1,60 +1,38 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import ReactFlow, { Background, Controls, type Edge, type Node } from 'reactflow'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import 'reactflow/dist/style.css'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { AlertTriangle, Send } from 'lucide-react'
+
+import { BreakdownPanels } from '../components/dashboard/BreakdownPanels'
+import { ClaimSummary } from '../components/dashboard/ClaimSummary'
+import { ClaimFilters } from '../components/dashboard/ClaimFilters'
+import { DashboardNav } from '../components/dashboard/DashboardNav'
+import { FreshnessStrip } from '../components/dashboard/FreshnessStrip'
+import { RankingTable } from '../components/dashboard/RankingTable'
+import { MutationExplorer } from '../components/dashboard/MutationExplorer'
+import { SpreadTimeline } from '../components/dashboard/SpreadTimeline'
+import { TrackedClaimList } from '../components/dashboard/TrackedClaimList'
 
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { useAppDispatch, showNotification } from '../context/AppContext'
 import {
-  getPlatforms,
+  getClaimAnalytics,
+  getNewsStatus,
+  getRankings,
   getTree,
-  getVelocity,
   ingestClaim,
   listClaims,
-  type Claim,
+  type ClaimAnalytics,
+  type ClaimContext,
+  type DashboardView,
+  type Period,
+  type RankingItem,
   type ClaimTree,
-  type PlatformCount,
-  type VelocityPoint,
+  type NewsStatus,
 } from '../lib/api'
 
-function toFlow(tree: ClaimTree): { nodes: Node[]; edges: Edge[] } {
-  // Simple top-down layout: order nodes by timestamp and stack them by depth.
-  const ordered = [...tree.nodes].sort((a, b) => (a.ts || '').localeCompare(b.ts || ''))
-  const nodes: Node[] = ordered.map((n, index) => ({
-    id: n.id,
-    position: { x: (index % 3) * 260, y: index * 120 },
-    data: {
-      label: `${n.label}\n${n.platform || 'unknown platform'} · ${n.mutation_type || 'unknown mutation'}`,
-    },
-    style: {
-      whiteSpace: 'pre-wrap',
-      fontSize: 12,
-      width: 220,
-      borderRadius: 8,
-    },
-  }))
-
-  const edges: Edge[] = tree.edges.map((e, index) => ({
-    id: `${e.source}-${e.target}-${index}`,
-    source: e.source,
-    target: e.target,
-  }))
-
-  return { nodes, edges }
-}
+const CLAIM_PAGE_SIZE = 25
 
 function ErrorState({ message }: { message: string }) {
   return (
@@ -78,84 +56,170 @@ export default function Dashboard() {
 
   const [text, setText] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
+  const [view, setView] = useState<DashboardView>('overview')
+  const [period, setPeriod] = useState<Period>('week')
+  const [search, setSearch] = useState('')
 
-  const [claims, setClaims] = useState<Claim[]>([])
+  const [claims, setClaims] = useState<ClaimContext[]>([])
+  const [claimsTotal, setClaimsTotal] = useState(0)
+  const [claimsPage, setClaimsPage] = useState(1)
   const [claimsError, setClaimsError] = useState<string | null>(null)
   const [claimsLoading, setClaimsLoading] = useState(false)
+  const [verifiedRankings, setVerifiedRankings] = useState<RankingItem[]>([])
+  const [aiRankings, setAiRankings] = useState<RankingItem[]>([])
+  const [rankingsLoading, setRankingsLoading] = useState(false)
+  const [verifiedError, setVerifiedError] = useState<string | null>(null)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [newsStatus, setNewsStatus] = useState<NewsStatus | null>(null)
+  const [newsStatusError, setNewsStatusError] = useState<string | null>(null)
+  const [manualRefreshing, setManualRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const [tree, setTree] = useState<ClaimTree | null>(null)
-  const [velocity, setVelocity] = useState<VelocityPoint[]>([])
-  const [platforms, setPlatforms] = useState<PlatformCount[]>([])
+  const [analytics, setAnalytics] = useState<ClaimAnalytics | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [detailWarning, setDetailWarning] = useState<string | null>(null)
+  const detailAvailable = useRef(false)
+  detailAvailable.current = Boolean(tree || analytics)
 
   const refreshClaims = useCallback(async () => {
     setClaimsLoading(true)
     setClaimsError(null)
     try {
-      const data = await listClaims()
-      setClaims(Array.isArray(data) ? data : [])
+      const data = await listClaims({
+        page: claimsPage,
+        limit: CLAIM_PAGE_SIZE,
+        query: search || undefined,
+        tier: view === 'verified' ? 'verified_false' : undefined,
+        platform: view === 'live' ? 'news' : undefined,
+        period,
+      })
+      const items = Array.isArray(data) ? data : data.items
+      setClaims(items)
+      setClaimsTotal(Array.isArray(data) ? items.length : data.total)
     } catch (error) {
-      setClaims([])
       setClaimsError(error instanceof Error ? error.message : 'Unable to load claims')
     } finally {
       setClaimsLoading(false)
     }
+  }, [claimsPage, period, search, view])
+
+  useEffect(() => {
+    setClaimsPage(1)
+  }, [period, search, view])
+
+  const refreshNewsStatus = useCallback(async () => {
+    setNewsStatusError(null)
+    try {
+      setNewsStatus(await getNewsStatus())
+    } catch (error) {
+      setNewsStatusError(error instanceof Error ? error.message : 'Freshness unavailable')
+    }
+  }, [])
+
+  const refreshRankings = useCallback(async () => {
+    setRankingsLoading(true)
+    setVerifiedError(null)
+    setAiError(null)
+    const [verified, ai] = await Promise.allSettled([
+      getRankings(period, 'verified_false'),
+      getRankings(period, 'ai_flagged'),
+    ])
+    if (verified.status === 'fulfilled') setVerifiedRankings(verified.value)
+    else setVerifiedError('Verified rankings are temporarily unavailable.')
+    if (ai.status === 'fulfilled') setAiRankings(ai.value)
+    else setAiError('Realtime AI rankings are temporarily unavailable.')
+    setRankingsLoading(false)
+  }, [period])
+
+  const refreshDetail = useCallback(async () => {
+    if (!selectedId) {
+      setTree(null)
+      setAnalytics(null)
+      setDetailError(null)
+      setDetailWarning(null)
+      return
+    }
+    setDetailLoading(true)
+    setDetailError(null)
+    setDetailWarning(null)
+    const [treeResult, analyticsResult] = await Promise.allSettled([
+      getTree(selectedId),
+      getClaimAnalytics(selectedId, period),
+    ])
+    if (treeResult.status === 'fulfilled') setTree(treeResult.value)
+    if (analyticsResult.status === 'fulfilled') setAnalytics(analyticsResult.value)
+    if (treeResult.status === 'rejected' || analyticsResult.status === 'rejected') {
+      const message =
+        treeResult.status === 'rejected' && analyticsResult.status === 'rejected'
+          ? 'Investigation refresh failed. Showing the last successful detail when available.'
+          : 'Part of this investigation could not refresh. Available detail remains visible.'
+      if (detailAvailable.current) setDetailWarning(message)
+      else if (treeResult.status === 'rejected' && analyticsResult.status === 'rejected') {
+        setDetailError(message)
+      } else setDetailWarning(message)
+    }
+    setDetailLoading(false)
+  }, [period, selectedId])
+
+  const refreshCallbacks = useRef({
+    claims: refreshClaims,
+    rankings: refreshRankings,
+    status: refreshNewsStatus,
+    detail: refreshDetail,
+  })
+  refreshCallbacks.current = {
+    claims: refreshClaims,
+    rankings: refreshRankings,
+    status: refreshNewsStatus,
+    detail: refreshDetail,
+  }
+  const refreshInFlight = useRef(false)
+  const refreshQueued = useRef(false)
+
+  const runRefreshCycle = useCallback((manual = false) => {
+    if (manual) setManualRefreshing(true)
+    if (refreshInFlight.current) {
+      refreshQueued.current = true
+      return
+    }
+    refreshInFlight.current = true
+    void (async () => {
+      do {
+        refreshQueued.current = false
+        const current = refreshCallbacks.current
+        await Promise.allSettled([
+          current.claims(),
+          current.rankings(),
+          current.status(),
+          current.detail(),
+        ])
+        setLastUpdated(new Date().toISOString())
+      } while (refreshQueued.current)
+    })().finally(() => {
+      refreshInFlight.current = false
+      setManualRefreshing(false)
+    })
   }, [])
 
   useEffect(() => {
-    void refreshClaims()
-  }, [refreshClaims])
+    runRefreshCycle()
+  }, [refreshClaims, refreshDetail, refreshNewsStatus, refreshRankings, runRefreshCycle])
 
   useEffect(() => {
-    if (!selectedId) {
-      setTree(null)
-      setVelocity([])
-      setPlatforms([])
-      setDetailError(null)
-      return
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') runRefreshCycle()
     }
-
-    let cancelled = false
-    setDetailLoading(true)
-    setDetailError(null)
-
-    Promise.allSettled([
-      getTree(selectedId),
-      getVelocity(selectedId),
-      getPlatforms(selectedId),
-    ])
-      .then(([treeRes, velocityRes, platformsRes]) => {
-        if (cancelled) return
-        setTree(treeRes.status === 'fulfilled' ? treeRes.value : { nodes: [], edges: [] })
-        setVelocity(
-          velocityRes.status === 'fulfilled' && Array.isArray(velocityRes.value)
-            ? velocityRes.value
-            : []
-        )
-        setPlatforms(
-          platformsRes.status === 'fulfilled' && Array.isArray(platformsRes.value)
-            ? platformsRes.value
-            : []
-        )
-        if (
-          treeRes.status === 'rejected' &&
-          velocityRes.status === 'rejected' &&
-          platformsRes.status === 'rejected'
-        ) {
-          setDetailError('Analysis failed — check backend configuration or try again later.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false)
-      })
-
+    const timer = window.setInterval(refreshWhenVisible, 60_000)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
     return () => {
-      cancelled = true
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
-  }, [selectedId])
+  }, [runRefreshCycle])
 
   const handleAnalyze = useCallback(async () => {
     const trimmed = text.trim()
@@ -168,7 +232,6 @@ export default function Dashboard() {
       const claim = await ingestClaim(trimmed)
       showNotification(dispatch, 'Claim submitted for analysis.', 'success')
       setText('')
-      await refreshClaims()
       if (claim && claim.id) {
         setSelectedId(claim.id)
       }
@@ -181,23 +244,59 @@ export default function Dashboard() {
     } finally {
       setAnalyzing(false)
     }
-  }, [text, dispatch, refreshClaims])
+  }, [text, dispatch])
 
-  const flow = useMemo(
-    () => (tree ? toFlow(tree) : { nodes: [], edges: [] }),
-    [tree]
-  )
+  const handleRefresh = useCallback(() => {
+    runRefreshCycle(true)
+  }, [runRefreshCycle])
 
-  const selectedClaim = claims.find((c) => c.id === selectedId) || null
+  const rankingClaim = [...verifiedRankings, ...aiRankings].find((item) => item.id === selectedId)
+  const selectedClaim: ClaimContext | null =
+    claims.find((c) => c.id === selectedId) ||
+    (rankingClaim
+      ? {
+          id: rankingClaim.id,
+          canonical: rankingClaim.canonical,
+          domain: rankingClaim.domain,
+          language: rankingClaim.language,
+          source: rankingClaim.source,
+          verdict: rankingClaim.verdict,
+          rationale: rankingClaim.rationale,
+          tier: rankingClaim.tier,
+          confidence: rankingClaim.confidence,
+          assessed_at: rankingClaim.assessed_at,
+          evidence_url: rankingClaim.evidence_url,
+          evidence_title: rankingClaim.evidence_title,
+          variant_count: rankingClaim.current_count + rankingClaim.previous_count,
+          first_seen: rankingClaim.first_seen,
+          last_seen: rankingClaim.last_seen,
+          current_count: rankingClaim.current_count,
+          previous_count: rankingClaim.previous_count,
+          top_platform: null,
+        }
+      : null)
 
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 text-foreground">Tracker Dashboard</h1>
-        <p className="text-lg text-muted-foreground">
-          Paste a claim to see how it spreads and mutates across public platforms in Nepal.
+    <div className="space-y-7">
+      <div className="max-w-3xl">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
+          Evidence and monitoring
+        </p>
+        <h1 className="text-3xl font-bold text-foreground">Misinformation intelligence</h1>
+        <p className="mt-2 text-base text-muted-foreground">
+          Compare evidence-backed false claims with clearly labeled realtime AI signals.
         </p>
       </div>
+
+      <DashboardNav value={view} onChange={setView} />
+      <FreshnessStrip
+        status={newsStatus}
+        error={newsStatusError}
+        refreshing={manualRefreshing}
+        dashboardUpdatedAt={lastUpdated}
+        onRefresh={handleRefresh}
+      />
+      <ClaimFilters search={search} onSearch={setSearch} period={period} onPeriod={setPeriod} />
 
       <Card>
         <CardHeader>
@@ -221,48 +320,70 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      <div className={`grid gap-6 ${view === 'overview' ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
+        {view !== 'live' && (
+          <RankingTable
+            title="Verified false claims"
+            items={verifiedRankings}
+            loading={rankingsLoading}
+            error={verifiedError}
+            onSelect={setSelectedId}
+          />
+        )}
+        {view !== 'verified' && (
+          <RankingTable
+            title="Realtime AI flags"
+            items={aiRankings}
+            loading={rankingsLoading}
+            error={aiError}
+            onSelect={setSelectedId}
+            ai
+          />
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Claims</CardTitle>
+            <CardTitle>
+              {view === 'verified'
+                ? 'Verified corpus'
+                : view === 'live'
+                  ? 'Monitored claims'
+                  : 'All claims'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {claimsLoading ? (
-              <div className="flex justify-center py-8">
-                <Spinner />
+            {claimsLoading && claims.length === 0 ? (
+              <div className="space-y-3 py-2" aria-label="Loading tracked claims">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-28 animate-pulse rounded-md bg-muted motion-reduce:animate-none"
+                  />
+                ))}
               </div>
-            ) : claimsError ? (
+            ) : claims.length === 0 && claimsError ? (
               <ErrorState message={claimsError} />
             ) : claims.length === 0 ? (
-              <EmptyState message="No claims yet. Analyze one above to get started." />
+              <EmptyState message="No claims match this view and search." />
             ) : (
-              <ul className="space-y-2">
-                {claims.map((claim) => (
-                  <li key={claim.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(claim.id)}
-                      className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                        claim.id === selectedId
-                          ? 'border-primary bg-accent/40 text-foreground'
-                          : 'border-border hover:bg-accent/20 text-muted-foreground'
-                      }`}
-                    >
-                      <span className="line-clamp-2 block">{claim.canonical}</span>
-                      {typeof claim.variant_count === 'number' && (
-                        <span className="mt-1 mr-2 inline-block rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-foreground">
-                          {claim.variant_count} variant{claim.variant_count === 1 ? '' : 's'}
-                        </span>
-                      )}
-                      {claim.verdict && (
-                        <span className="mt-1 inline-block text-xs font-medium text-primary">
-                          {claim.verdict}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                {claimsError && (
+                  <p className="mb-3 text-xs text-destructive">
+                    Refresh failed. Showing the last successful claim list.
+                  </p>
+                )}
+                <TrackedClaimList
+                  claims={claims}
+                  selectedId={selectedId}
+                  page={claimsPage}
+                  pageSize={CLAIM_PAGE_SIZE}
+                  total={claimsTotal}
+                  onSelect={setSelectedId}
+                  onPage={setClaimsPage}
+                />
+              </>
             )}
           </CardContent>
         </Card>
@@ -274,11 +395,13 @@ export default function Dashboard() {
                 <EmptyState message="Select a claim to see its mutation tree, velocity, and platform breakdown." />
               </CardContent>
             </Card>
-          ) : detailLoading ? (
+          ) : detailLoading && !tree && !analytics ? (
             <Card>
               <CardContent>
-                <div className="flex justify-center py-16">
-                  <Spinner size="lg" />
+                <div className="space-y-4 py-8" aria-label="Loading investigation">
+                  <div className="h-8 w-2/3 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                  <div className="h-28 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                  <div className="h-64 animate-pulse rounded bg-muted motion-reduce:animate-none" />
                 </div>
               </CardContent>
             </Card>
@@ -290,96 +413,29 @@ export default function Dashboard() {
             </Card>
           ) : (
             <>
-              {selectedClaim && (
+              {detailWarning && (
+                <p className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">
+                  {detailWarning}
+                </p>
+              )}
+              {analytics ? (
+                <>
+                  <ClaimSummary claim={selectedClaim} analytics={analytics} tree={tree} />
+                  <SpreadTimeline data={analytics.timeline} />
+                  <BreakdownPanels
+                    platforms={analytics.platforms}
+                    languages={analytics.languages}
+                    mutations={analytics.mutations}
+                  />
+                </>
+              ) : (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Selected claim</CardTitle>
-                  </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">{selectedClaim.canonical}</p>
-                    {selectedClaim.verdict && (
-                      <p className="mt-2 font-medium text-primary">
-                        Verdict: {selectedClaim.verdict}
-                      </p>
-                    )}
-                    {selectedClaim.rationale && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Rationale: {selectedClaim.rationale}
-                      </p>
-                    )}
+                    <ErrorState message="Summary analytics are unavailable, but mutation data may still be shown." />
                   </CardContent>
                 </Card>
               )}
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Mutation tree</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {flow.nodes.length === 0 ? (
-                    <EmptyState message="No mutations recorded for this claim yet." />
-                  ) : (
-                    <div className="h-96 w-full rounded-md border border-border">
-                      <ReactFlow nodes={flow.nodes} edges={flow.edges} fitView>
-                        <Background />
-                        <Controls />
-                      </ReactFlow>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Velocity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {velocity.length === 0 ? (
-                    <EmptyState message="No velocity data available yet." />
-                  ) : (
-                    <div className="h-72 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={velocity}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                          <XAxis dataKey="bucket" fontSize={12} />
-                          <YAxis allowDecimals={false} fontSize={12} />
-                          <Tooltip />
-                          <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke="var(--primary, #6366f1)"
-                            strokeWidth={2}
-                            dot={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Platform breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {platforms.length === 0 ? (
-                    <EmptyState message="No platform data available yet." />
-                  ) : (
-                    <div className="h-72 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={platforms}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                          <XAxis dataKey="platform" fontSize={12} />
-                          <YAxis allowDecimals={false} fontSize={12} />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="var(--primary, #6366f1)" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <MutationExplorer tree={tree || { nodes: [], edges: [] }} />
             </>
           )}
         </div>

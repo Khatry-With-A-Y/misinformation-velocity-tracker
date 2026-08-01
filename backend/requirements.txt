@@ -11,6 +11,9 @@ supabase==2.7.4
 google-genai==0.3.0
 tenacity==9.0.0
 
+# News ingestion (RSS)
+feedparser==6.0.11
+
 # Dataset loaders
 datasets==2.21.0
 pandas==2.2.2

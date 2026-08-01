@@ -7,7 +7,7 @@ the returned access token is a valid Supabase JWT (verified by get_current_user)
 import time
 
 from fastapi import APIRouter, Depends, HTTPException
-from gotrue.errors import AuthRetryableError
+from gotrue.errors import AuthApiError, AuthRetryableError
 
 from app.core.supabase import get_anon_client, get_current_user
 from app.schemas.auth import (
@@ -44,9 +44,23 @@ async def register(data: RegisterRequest):
                     detail="Authentication service is temporarily unavailable. Please try again.",
                 )
             time.sleep(1)
+        except AuthApiError as exc:
+            message = str(exc)
+            code = str(getattr(exc, "code", ""))
+            if code == "user_already_exists" or "already registered" in message.lower():
+                logger.info("Registration rejected for an existing account")
+                raise HTTPException(
+                    status_code=409,
+                    detail="An account with this email already exists. Please log in.",
+                )
+            logger.warning("Supabase rejected registration: %s", message)
+            raise HTTPException(status_code=400, detail=message)
         except Exception:
             logger.exception("Registration failed")
-            raise HTTPException(status_code=400, detail="Registration failed")
+            raise HTTPException(
+                status_code=502,
+                detail="Authentication service could not process the registration.",
+            )
 
     session = getattr(res, "session", None)
     if session and getattr(session, "access_token", None):

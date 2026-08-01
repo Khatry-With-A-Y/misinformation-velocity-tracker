@@ -41,6 +41,24 @@ class Settings(BaseSettings):
     CLAIM_RATE_LIMIT: int = Field(default=10, ge=1, le=1000)
     CLAIM_RATE_WINDOW_MINUTES: int = Field(default=60, ge=1, le=10080)
 
+    # --- News ingestion (RSS) ---
+    # Direct publisher feeds only: aggregator redirect URLs (e.g. Google News)
+    # carry per-request tokens that defeat URL-hash deduplication.
+    NEWS_FEEDS: dict[str, str] = {
+        "The Kathmandu Post": "https://kathmandupost.com/rss",
+        "OnlineKhabar English": "https://english.onlinekhabar.com/feed",
+    }
+    NEWS_MAX_ITEMS_PER_POLL: int = Field(default=10, ge=1, le=100)
+    NEWS_AI_FLAG_THRESHOLD: float = Field(default=0.75, ge=0, le=1)
+    NEWS_POLL_INTERVAL_MINUTES: int = Field(default=60, ge=5, le=1440)
+    NEWS_POLL_STARTUP_DELAY_SECONDS: int = Field(default=15, ge=0, le=3600)
+    NEWS_POLL_LEASE_SECONDS: int = Field(default=1800, ge=60, le=86400)
+    NEWS_POLL_BACKOFF_BASE_SECONDS: int = Field(default=60, ge=1, le=3600)
+    NEWS_POLL_BACKOFF_MAX_SECONDS: int = Field(default=3600, ge=1, le=86400)
+    NEWS_POLL_JITTER_SECONDS: int = Field(default=15, ge=0, le=300)
+    # Empty token disables POST /api/news/poll (returns 503).
+    NEWS_ADMIN_TOKEN: str = ""
+
     # --- Loader / generator limits ---
     NEPOC_CLAIM_GROUPS: int = 10
     MISDETECT_ROWS_PER_DOMAIN: int = 5

@@ -3,6 +3,9 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+Period = Literal["day", "week", "month", "year"]
+TrustTier = Literal["VERIFIED_FALSE", "AI_FLAGGED", "UNVERIFIED"]
+
 
 class IngestRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
@@ -49,14 +52,77 @@ class ClaimSummary(BaseModel):
     rationale: Optional[str] = None
     variant_count: Optional[int] = None
     created_at: Optional[str] = None
+    tier: TrustTier = "UNVERIFIED"
+    confidence: Optional[float] = None
+    assessed_at: Optional[str] = None
+    evidence_url: Optional[str] = None
+    evidence_title: Optional[str] = None
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+    current_count: int = 0
+    previous_count: int = 0
+    top_platform: Optional[str] = None
+
+
+class ClaimPage(BaseModel):
+    items: List[ClaimSummary]
+    total: int = Field(ge=0)
+    next_cursor: Optional[str] = None
+
+
+class RankingItem(BaseModel):
+    id: str
+    canonical: str
+    domain: Optional[str] = None
+    language: Optional[str] = None
+    source: Optional[str] = None
+    tier: str
+    verdict: str
+    confidence: Optional[float] = None
+    rationale: Optional[str] = None
+    model: Optional[str] = None
+    assessed_at: Optional[str] = None
+    evidence_url: Optional[str] = None
+    evidence_title: Optional[str] = None
+    current_count: int
+    previous_count: int
+    percent_change: Optional[float] = None
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+
+
+class DistributionItem(BaseModel):
+    label: str
+    count: int
+
+
+class TimelinePoint(BaseModel):
+    date: str
+    count: int
+    cumulative: int
+
+
+class ClaimAnalytics(BaseModel):
+    summary: dict
+    timeline: List[TimelinePoint]
+    platforms: List[DistributionItem]
+    languages: List[DistributionItem]
+    mutations: List[DistributionItem]
+    top_variants: List[dict]
 
 
 class TreeNode(BaseModel):
     id: str
     label: str
+    text: Optional[str] = None
     platform: Optional[str] = None
     ts: Optional[str] = None
     mutation_type: Optional[str] = None
+    language: Optional[str] = None
+    source: Optional[str] = None
+    confidence: Optional[float] = None
+    evidence_url: Optional[str] = None
+    evidence_title: Optional[str] = None
 
 
 class TreeEdge(BaseModel):

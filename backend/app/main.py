@@ -6,6 +6,8 @@ from app.utils.logger import setup_logger
 from app.routes.health import router as health_router
 from app.routes.auth import router as auth_router
 from app.routes.claims import router as claims_router
+from app.routes.news import router as news_router
+from app.routes.analytics import router as analytics_router
 
 settings = get_settings()
 logger = setup_logger(__name__)
@@ -29,6 +31,8 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(claims_router, prefix="/api")
+app.include_router(news_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api")
 
 
 @app.get("/")

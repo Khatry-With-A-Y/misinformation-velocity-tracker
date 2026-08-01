@@ -13,6 +13,67 @@ export interface Claim {
   created_at?: string
 }
 
+export interface ClaimContext extends Claim {
+  tier: 'VERIFIED_FALSE' | 'AI_FLAGGED' | 'UNVERIFIED'
+  confidence?: number | null
+  assessed_at?: string | null
+  evidence_url?: string | null
+  evidence_title?: string | null
+  first_seen?: string | null
+  last_seen?: string | null
+  current_count: number
+  previous_count: number
+  top_platform?: string | null
+}
+
+export type Period = 'day' | 'week' | 'month' | 'year'
+export type DashboardView = 'overview' | 'verified' | 'live'
+
+export interface ClaimPage {
+  items: ClaimContext[]
+  total: number
+  next_cursor?: string | null
+}
+
+export interface NewsStatus {
+  state: 'fresh' | 'stale' | 'polling' | 'quota_delayed' | 'error'
+  stale: boolean
+  last_success_at?: string | null
+  next_expected_at?: string | null
+  latest_run?: {
+    status: 'running' | 'succeeded' | 'failed' | 'quota_delayed'
+    trigger: 'worker' | 'manual'
+    started_at: string
+    completed_at?: string | null
+    lease_expires_at: string
+    counters?: Record<string, number>
+    error_summary?: string | null
+  } | null
+  staging: { pending: number; failed: number }
+  sources: Array<{ name: string; url: string }>
+}
+
+export interface RankingItem {
+  id: string
+  canonical: string
+  domain?: string | null
+  language?: string | null
+  source?: string | null
+  tier: 'VERIFIED_FALSE' | 'AI_FLAGGED'
+  verdict: string
+  confidence?: number | null
+  rationale?: string | null
+  model?: string | null
+  assessed_at?: string | null
+  evidence_url?: string | null
+  evidence_title?: string | null
+  current_count: number
+  previous_count: number
+  percent_change?: number | null
+  first_seen?: string | null
+  last_seen?: string | null
+}
+
 export interface ResearchResource {
   name: string
   url: string
@@ -39,9 +100,15 @@ export interface IngestResponse {
 export interface TreeNode {
   id: string
   label: string
+  text?: string | null
   platform?: string | null
   ts?: string | null
   mutation_type?: string | null
+  language?: string | null
+  source?: string | null
+  confidence?: number | null
+  evidence_url?: string | null
+  evidence_title?: string | null
 }
 
 export interface TreeEdge {
@@ -62,6 +129,31 @@ export interface VelocityPoint {
 export interface PlatformCount {
   platform: string
   count: number
+}
+
+export interface DistributionItem {
+  label: string
+  count: number
+}
+export interface TimelinePoint {
+  date: string
+  count: number
+  cumulative: number
+}
+export interface ClaimAnalytics {
+  summary: {
+    first_seen?: string | null
+    last_seen?: string | null
+    observed_variants: number
+    current_count: number
+    previous_count: number
+    top_platform?: string | null
+  }
+  timeline: TimelinePoint[]
+  platforms: DistributionItem[]
+  languages: DistributionItem[]
+  mutations: DistributionItem[]
+  top_variants: TreeNode[]
 }
 
 function authHeaders(): Record<string, string> {
@@ -128,8 +220,45 @@ export function ingestClaim(text: string): Promise<IngestResponse> {
   })
 }
 
-export function listClaims(): Promise<Claim[]> {
-  return request<Claim[]>('/api/claims')
+function queryString(params: Record<string, string | number | undefined | null>): string {
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') query.set(key, String(value))
+  })
+  const serialized = query.toString()
+  return serialized ? `?${serialized}` : ''
+}
+
+export function listClaims(
+  params: {
+    limit?: number
+    page?: number
+    query?: string
+    source?: string
+    domain?: string
+    language?: string
+    tier?: string
+    period?: Period
+    platform?: string
+  } = {}
+): Promise<ClaimContext[] | ClaimPage> {
+  return request<ClaimContext[] | ClaimPage>(`/api/claims${queryString(params)}`)
+}
+
+export function getNewsStatus(): Promise<NewsStatus> {
+  return request<NewsStatus>('/api/news/status')
+}
+
+export function getRankings(
+  period: Period,
+  tier: 'verified_false' | 'ai_flagged',
+  limit = 10
+): Promise<RankingItem[]> {
+  return request<RankingItem[]>(`/api/analytics/rankings${queryString({ period, tier, limit })}`)
+}
+
+export function getClaimAnalytics(claimId: string, period: Period): Promise<ClaimAnalytics> {
+  return request<ClaimAnalytics>(`/api/analytics/claims/${claimId}${queryString({ period })}`)
 }
 
 export function getTree(claimId: string): Promise<ClaimTree> {

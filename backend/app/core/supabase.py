@@ -47,7 +47,7 @@ def get_client() -> Client:
                         "Copy backend/.env.example to backend/.env and fill them in."
                     )
                 _service_client = create_client(
-                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY
+                    settings.SUPABASE_URL.rstrip("/"), settings.SUPABASE_SERVICE_KEY
                 )
     return _service_client
 
@@ -63,7 +63,7 @@ def get_anon_client() -> Client:
                     raise RuntimeError(
                         "SUPABASE_URL / SUPABASE_ANON_KEY are not configured."
                     )
-                _anon_client = create_client(settings.SUPABASE_URL, key)
+                _anon_client = create_client(settings.SUPABASE_URL.rstrip("/"), key)
     return _anon_client
 
 
@@ -73,7 +73,9 @@ def create_user_client(access_token: str) -> Client:
         raise IngestionAuthError("Authentication is required")
     if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
         raise RuntimeError("SUPABASE_URL / SUPABASE_ANON_KEY are not configured.")
-    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    client = create_client(
+        settings.SUPABASE_URL.rstrip("/"), settings.SUPABASE_ANON_KEY
+    )
     client.postgrest.auth(access_token)
     return client
 
@@ -93,6 +95,24 @@ def ingest_claim_atomic(access_token: str, payload: dict) -> dict:
         raise IngestionError("Claim ingestion failed") from exc
     if not response.data:
         raise IngestionError("Claim ingestion returned no result")
+    return response.data[0]
+
+
+def ingest_external_claim_atomic(payload: dict) -> dict:
+    """Invoke the service-role-only external ingestion RPC (news promotion).
+
+    Mirrors ingest_claim_atomic's call pattern but runs on the privileged
+    client: the RPC itself has no auth.uid(), rate limiting, or
+    claim_submissions write (see schema.sql for the shared-lock contract).
+    """
+    try:
+        response = get_client().rpc(
+            "ingest_external_claim_atomic", payload
+        ).execute()
+    except Exception as exc:
+        raise IngestionError("External claim ingestion failed") from exc
+    if not response.data:
+        raise IngestionError("External claim ingestion returned no result")
     return response.data[0]
 
 
