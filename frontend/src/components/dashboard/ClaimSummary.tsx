@@ -4,6 +4,7 @@ import {
   effectivePlatform,
   findRootNodes,
   formatObservedDate,
+  platformLabel,
   provenanceLabel,
   recommendedAction,
   trendLabel,
@@ -66,7 +67,7 @@ export function ClaimSummary({
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {provenanceLabel(root?.source || claim?.source)} ·{' '}
-            {root?.platform || 'Platform unknown'} ·{' '}
+            {root?.platform ? platformLabel(root.platform) : 'Platform unknown'} ·{' '}
             {formatObservedDate(root?.ts || claim?.first_seen || summary.first_seen)}
           </p>
           {roots.length > 1 && (

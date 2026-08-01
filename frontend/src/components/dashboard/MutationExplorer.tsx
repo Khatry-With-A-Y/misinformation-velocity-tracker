@@ -11,6 +11,7 @@ import ReactFlow, {
 } from 'reactflow'
 import type { ClaimTree, TreeNode } from '../../lib/api'
 import { VariantInspector } from './VariantInspector'
+import { platformLabel } from './claimContext'
 
 interface VariantNodeData {
   item: TreeNode
@@ -46,7 +47,7 @@ function VariantNode({ data }: NodeProps<VariantNodeData>) {
         {item.text || item.label}
       </p>
       <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
-        <span>{item.platform || 'Platform unknown'}</span>
+        <span>{item.platform ? platformLabel(item.platform, item.source) : 'Platform unknown'}</span>
         <span>{item.ts ? new Date(item.ts).toLocaleString() : 'Time not recorded'}</span>
       </div>
       <Handle type="source" position={Position.Right} className="!bg-muted-foreground" />
@@ -228,7 +229,7 @@ export function MutationExplorer({ tree }: { tree: ClaimTree }) {
               <tr key={node.id}>
                 <td>{node.data.item.text || node.data.item.label}</td>
                 <td>{node.data.origin ? 'Yes' : 'No'}</td>
-                <td>{node.data.item.platform || 'Unknown'}</td>
+                <td>{platformLabel(node.data.item.platform, node.data.item.source)}</td>
                 <td>{node.data.item.ts || 'Not recorded'}</td>
               </tr>
             ))}

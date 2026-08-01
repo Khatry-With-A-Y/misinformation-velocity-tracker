@@ -26,11 +26,24 @@ export function trendLabel(trend: Trend): string {
   }[trend]
 }
 
+export function platformLabel(platform?: string | null, source?: string | null): string {
+  const value = platform?.trim()
+  if (!value) return 'Unknown'
+  if (value.toLowerCase() === 'news') {
+    const publisher = source?.trim()
+    return publisher ? `News · ${publisher}` : 'News'
+  }
+  return value
+}
+
 export function effectivePlatform(
   claim?: ClaimContext | null,
   analytics?: ClaimAnalytics | null
 ): string {
-  return claim?.top_platform || analytics?.summary.top_platform || 'Unknown'
+  return platformLabel(
+    claim?.top_platform || analytics?.summary.top_platform,
+    claim?.source
+  )
 }
 
 export function trustTreatment(tier?: ClaimContext['tier'] | null) {

@@ -1,4 +1,5 @@
 import type { TreeNode } from '../../lib/api'
+import { platformLabel } from './claimContext'
 
 export function VariantInspector({ variant }: { variant?: TreeNode | null }) {
   if (!variant)
@@ -18,7 +19,7 @@ export function VariantInspector({ variant }: { variant?: TreeNode | null }) {
       <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
         <div>
           <dt className="text-muted-foreground">Platform</dt>
-          <dd className="mt-0.5 font-medium">{variant.platform || 'Unknown'}</dd>
+          <dd className="mt-0.5 font-medium">{platformLabel(variant.platform, variant.source)}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Language</dt>

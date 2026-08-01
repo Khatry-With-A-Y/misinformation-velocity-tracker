@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     GENERATION_MODEL: str = "gemini-1.5-flash"
 
     # --- Authenticated claim ingestion ---
-    CLAIM_MATCH_THRESHOLD: float = Field(default=0.85, ge=0, le=1)
+    CLAIM_MATCH_THRESHOLD: float = Field(default=0.55, ge=0, le=1)
     CLAIM_MATCH_WINDOW_DAYS: int = Field(default=3650, ge=1, le=36500)
     CLAIM_RATE_LIMIT: int = Field(default=10, ge=1, le=1000)
     CLAIM_RATE_WINDOW_MINUTES: int = Field(default=60, ge=1, le=10080)
@@ -47,10 +47,14 @@ class Settings(BaseSettings):
     NEWS_FEEDS: dict[str, str] = {
         "The Kathmandu Post": "https://kathmandupost.com/rss",
         "OnlineKhabar English": "https://english.onlinekhabar.com/feed",
+        "Ratopati English": "https://english.ratopati.com/feed",
+        "The Rising Nepal": "https://risingnepaldaily.com/rss",
+        "Khabarhub English": "https://english.khabarhub.com/feed",
+        "Nepal News English": "https://english.nepalnews.com/feed",
     }
-    NEWS_MAX_ITEMS_PER_POLL: int = Field(default=10, ge=1, le=100)
+    NEWS_MAX_ITEMS_PER_POLL: int = Field(default=50, ge=1, le=100)
     NEWS_AI_FLAG_THRESHOLD: float = Field(default=0.75, ge=0, le=1)
-    NEWS_POLL_INTERVAL_MINUTES: int = Field(default=60, ge=5, le=1440)
+    NEWS_POLL_INTERVAL_MINUTES: int = Field(default=5, ge=5, le=1440)
     NEWS_POLL_STARTUP_DELAY_SECONDS: int = Field(default=15, ge=0, le=3600)
     NEWS_POLL_LEASE_SECONDS: int = Field(default=1800, ge=60, le=86400)
     NEWS_POLL_BACKOFF_BASE_SECONDS: int = Field(default=60, ge=1, le=3600)

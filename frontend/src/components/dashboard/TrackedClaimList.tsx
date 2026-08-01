@@ -4,6 +4,7 @@ import type { ClaimContext } from '../../lib/api'
 import { Button } from '../ui/Button'
 import {
   formatObservedDate,
+  platformLabel,
   provenanceLabel,
   recommendedAction,
   trustTreatment,
@@ -59,7 +60,7 @@ export function TrackedClaimList({
                 </span>
                 <span className="mt-2.5 grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-2">
                   <span className="truncate">Origin: {provenanceLabel(claim.source)}</span>
-                  <span className="truncate">Platform: {claim.top_platform || 'Unknown'}</span>
+                  <span className="truncate">Platform: {platformLabel(claim.top_platform, claim.source)}</span>
                   <span className="truncate">First seen: {formatObservedDate(claim.first_seen)}</span>
                   <span className="truncate">Last seen: {formatObservedDate(claim.last_seen)}</span>
                 </span>

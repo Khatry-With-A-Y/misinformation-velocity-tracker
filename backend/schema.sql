@@ -257,7 +257,7 @@ create or replace function public.ingest_claim_atomic(
     p_embedding vector(768),
     p_platform text default 'submission',
     p_ts timestamptz default now(),
-    p_match_threshold double precision default 0.85,
+    p_match_threshold double precision default 0.55,
     p_match_window_days integer default 3650,
     p_rate_limit integer default 10,
     p_rate_window_minutes integer default 60
@@ -693,7 +693,7 @@ create or replace function public.ingest_external_claim_atomic(
     p_platform text default 'news',
     p_source text default 'news',
     p_ts timestamptz default now(),
-    p_match_threshold double precision default 0.85,
+    p_match_threshold double precision default 0.55,
     p_match_window_days integer default 3650
 )
 returns table (
